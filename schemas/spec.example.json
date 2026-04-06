@@ -1,0 +1,815 @@
+{
+  "$schema": "./spec.schema.json",
+  "schema_version": "1.0.0",
+  "spec_version": "1.1.0",
+  "spec_id": "a3f7c2e1-84b0-4d9a-b6f3-1e2c5a7d9f04",
+  "created_at": "2026-04-06T14:00:00Z",
+  "updated_at": "2026-04-07T09:30:00Z",
+  "created_by": "interview_agent_v1",
+
+  "business_profile": {
+    "_section_render": ["customer", "dev"],
+    "company_name": "Acme Precision Parts LLC",
+    "industry": {
+      "_value": "contract_manufacturing",
+      "_render": ["customer", "dev"],
+      "_label": "Industry",
+      "_hint": "Used to pre-populate workflow templates"
+    },
+    "industry_display": "Contract Manufacturing — Precision Machined Components",
+    "company_size": {
+      "employees": 42,
+      "annual_revenue_band": "1M_10M",
+      "manufacturing_sites": 1
+    },
+    "revenue_model": {
+      "_value": ["job_shop", "blanket_orders"],
+      "_render": ["customer", "dev"],
+      "_label": "How we make money",
+      "_hint": "Drives which order types must be supported"
+    },
+    "revenue_model_description": "We produce custom machined parts on a per-job basis and fulfill recurring blanket purchase orders for 3 key customers.",
+    "pain_points": [
+      {
+        "id": "pp_001",
+        "description": "Quoting new jobs takes 2–3 days because BOM costs must be manually pulled from spreadsheets.",
+        "severity": "high",
+        "_render": ["customer", "dev"]
+      },
+      {
+        "id": "pp_002",
+        "description": "No visibility into real-time inventory levels means we sometimes over-promise on delivery dates.",
+        "severity": "high",
+        "_render": ["customer", "dev"]
+      },
+      {
+        "id": "pp_003",
+        "description": "Invoicing is manual and delayed by 3–5 days after shipment, causing cash flow issues.",
+        "severity": "medium",
+        "_render": ["customer", "dev"]
+      }
+    ],
+    "success_metrics": [
+      {
+        "id": "sm_001",
+        "description": "Quote turnaround time under 4 hours for standard jobs",
+        "_render": ["customer", "dev"]
+      },
+      {
+        "id": "sm_002",
+        "description": "Invoice generated automatically within 1 hour of shipment confirmation",
+        "_render": ["customer", "dev"]
+      },
+      {
+        "id": "sm_003",
+        "description": "Inventory accuracy above 98% with real-time tracking",
+        "_render": ["customer", "dev"]
+      }
+    ]
+  },
+
+  "core_workflows": [
+    {
+      "workflow_id": "wf_001",
+      "name": "Order Intake to Production Release",
+      "_section_render": ["customer", "dev"],
+      "description": "Covers the path from receiving a customer purchase order through releasing a job to the shop floor.",
+      "steps": [
+        {
+          "step_id": "wf_001_s01",
+          "sequence": 1,
+          "name": "Receive Customer PO",
+          "_label": "Customer sends purchase order",
+          "actor": { "type": "human", "role": "sales_coordinator" },
+          "action": "log_incoming_po",
+          "system": "erp_orders_module",
+          "inputs": [
+            { "entity_ref": "ent_purchase_order", "source": "email_or_upload" }
+          ],
+          "outputs": [
+            { "entity_ref": "ent_purchase_order", "state": "draft" }
+          ],
+          "rules": [
+            {
+              "rule_id": "r_001",
+              "type": "required_field",
+              "description": "PO must include customer_id, line items with part numbers, and requested ship date"
+            }
+          ],
+          "ai_touchpoint_ref": "ai_001",
+          "estimated_frequency": "daily",
+          "notes": "Currently done via email + manual data entry into a spreadsheet"
+        },
+        {
+          "step_id": "wf_001_s02",
+          "sequence": 2,
+          "name": "Review and Confirm PO",
+          "_label": "Sales reviews and confirms order",
+          "actor": { "type": "human", "role": "sales_coordinator" },
+          "action": "confirm_po",
+          "system": "erp_orders_module",
+          "inputs": [
+            { "entity_ref": "ent_purchase_order", "state": "draft" }
+          ],
+          "outputs": [
+            { "entity_ref": "ent_purchase_order", "state": "confirmed" }
+          ],
+          "rules": [
+            {
+              "rule_id": "r_002",
+              "type": "validation",
+              "description": "All line items must resolve to a known part number in the catalog"
+            },
+            {
+              "rule_id": "r_003",
+              "type": "conditional",
+              "description": "If order total > $10,000, require estimator approval before confirming"
+            }
+          ],
+          "ai_touchpoint_ref": "ai_002",
+          "estimated_frequency": "daily",
+          "notes": null
+        },
+        {
+          "step_id": "wf_001_s03",
+          "sequence": 3,
+          "name": "Release Job to Shop Floor",
+          "_label": "Job released to production",
+          "actor": { "type": "human", "role": "shop_floor_supervisor" },
+          "action": "release_job",
+          "system": "erp_production_module",
+          "inputs": [
+            { "entity_ref": "ent_purchase_order", "state": "confirmed" },
+            { "entity_ref": "ent_bom", "source": "part_catalog" }
+          ],
+          "outputs": [
+            { "entity_ref": "ent_job_order", "state": "released" }
+          ],
+          "rules": [
+            {
+              "rule_id": "r_004",
+              "type": "system_check",
+              "description": "Inventory on-hand for all BOM components must be sufficient, or a purchase order must be open"
+            }
+          ],
+          "ai_touchpoint_ref": null,
+          "estimated_frequency": "daily",
+          "notes": null
+        }
+      ]
+    },
+    {
+      "workflow_id": "wf_002",
+      "name": "Shipment to Invoice",
+      "_section_render": ["customer", "dev"],
+      "description": "Records shipment of completed goods and automatically generates a customer invoice synced to QuickBooks.",
+      "steps": [
+        {
+          "step_id": "wf_002_s01",
+          "sequence": 1,
+          "name": "Record Shipment",
+          "_label": "Shipping records goods as dispatched",
+          "actor": { "type": "human", "role": "shipping_clerk" },
+          "action": "record_shipment",
+          "system": "erp_fulfillment_module",
+          "inputs": [
+            { "entity_ref": "ent_job_order", "state": "completed" }
+          ],
+          "outputs": [
+            { "entity_ref": "ent_shipment", "state": "dispatched" }
+          ],
+          "rules": [
+            {
+              "rule_id": "r_005",
+              "type": "required_field",
+              "description": "Shipment must include tracking number and carrier"
+            }
+          ],
+          "ai_touchpoint_ref": null,
+          "estimated_frequency": "daily",
+          "notes": null
+        },
+        {
+          "step_id": "wf_002_s02",
+          "sequence": 2,
+          "name": "Auto-Generate Invoice",
+          "_label": "System creates invoice from shipment",
+          "actor": { "type": "system", "system_id": "int_001" },
+          "action": "generate_invoice",
+          "system": "erp_billing_module",
+          "inputs": [
+            { "entity_ref": "ent_shipment", "state": "dispatched" },
+            { "entity_ref": "ent_purchase_order", "state": "in_production" }
+          ],
+          "outputs": [
+            { "entity_ref": "ent_invoice", "state": "draft" }
+          ],
+          "rules": [
+            {
+              "rule_id": "r_006",
+              "type": "validation",
+              "description": "Invoice line items must match shipped quantities from job order"
+            }
+          ],
+          "ai_touchpoint_ref": null,
+          "estimated_frequency": "event_driven",
+          "notes": "Triggers QuickBooks sync via int_001"
+        }
+      ]
+    }
+  ],
+
+  "data_entities": [
+    {
+      "entity_id": "ent_customer",
+      "name": "Customer",
+      "plural_name": "Customers",
+      "_section_render": ["dev", "api"],
+      "description": "A company or individual that places purchase orders with Acme.",
+      "fields": [
+        { "field_id": "cust_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "cust_name", "name": "name", "type": "string", "required": true, "default": null, "validation": [{ "rule": "min_length", "value": 2 }, { "rule": "max_length", "value": 200 }], "_render": ["dev", "api", "customer"] },
+        { "field_id": "cust_code", "name": "code", "type": "string", "required": true, "default": null, "validation": [{ "rule": "unique" }, { "rule": "regex", "value": "^[A-Z0-9-]{3,10}$" }], "_render": ["dev", "api"] },
+        { "field_id": "cust_email", "name": "primary_email", "type": "string", "required": false, "default": null, "validation": [{ "rule": "regex", "value": "^[^@]+@[^@]+\\.[^@]+$" }], "_render": ["dev", "api"] },
+        { "field_id": "cust_created_at", "name": "created_at", "type": "datetime", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] }
+      ],
+      "indexes": [
+        { "fields": ["code"], "unique": true },
+        { "fields": ["name"], "unique": false }
+      ],
+      "soft_delete": true,
+      "audit_trail": true
+    },
+    {
+      "entity_id": "ent_part",
+      "name": "Part",
+      "plural_name": "Parts",
+      "_section_render": ["dev", "api"],
+      "description": "A catalog item that can be manufactured or purchased.",
+      "fields": [
+        { "field_id": "part_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "part_number", "name": "part_number", "type": "string", "required": true, "default": null, "validation": [{ "rule": "unique" }], "_render": ["dev", "api", "customer"] },
+        { "field_id": "part_description", "name": "description", "type": "text", "required": true, "default": null, "validation": [], "_render": ["dev", "api", "customer"] },
+        { "field_id": "part_unit_cost", "name": "standard_unit_cost", "type": "decimal", "required": true, "default": null, "validation": [{ "rule": "min_value", "value": 0 }], "_render": ["dev", "api"] },
+        { "field_id": "part_uom", "name": "unit_of_measure", "type": "enum", "enum_values": ["each", "lb", "kg", "ft", "in", "m", "sqft", "sqm"], "required": true, "default": "each", "validation": [], "_render": ["dev", "api", "customer"] }
+      ],
+      "indexes": [
+        { "fields": ["part_number"], "unique": true }
+      ],
+      "soft_delete": true,
+      "audit_trail": false
+    },
+    {
+      "entity_id": "ent_bom",
+      "name": "Bill of Materials",
+      "plural_name": "Bills of Materials",
+      "_section_render": ["dev", "api"],
+      "description": "A list of components and sub-assemblies required to manufacture a finished part.",
+      "fields": [
+        { "field_id": "bom_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "bom_parent_part_id", "name": "parent_part_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_part" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_part", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "bom_component_part_id", "name": "component_part_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_part" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_part", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "bom_quantity", "name": "quantity", "type": "decimal", "required": true, "default": null, "validation": [{ "rule": "min_value", "value": 0 }], "_render": ["dev", "api"] },
+        { "field_id": "bom_version", "name": "version", "type": "integer", "required": true, "default": 1, "validation": [{ "rule": "min_value", "value": 1 }], "_render": ["dev", "api"] }
+      ],
+      "indexes": [
+        { "fields": ["parent_part_id", "version"], "unique": false },
+        { "fields": ["parent_part_id", "component_part_id", "version"], "unique": true }
+      ],
+      "soft_delete": false,
+      "audit_trail": true
+    },
+    {
+      "entity_id": "ent_purchase_order",
+      "name": "Purchase Order",
+      "plural_name": "Purchase Orders",
+      "_section_render": ["dev", "api"],
+      "description": "Represents a customer's commitment to buy specific items at agreed quantities and prices.",
+      "fields": [
+        { "field_id": "po_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "po_customer_id", "name": "customer_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_customer" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_customer", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "po_number", "name": "po_number", "type": "string", "required": true, "default": null, "validation": [{ "rule": "unique" }], "_render": ["dev", "api", "customer"] },
+        { "field_id": "po_status", "name": "status", "type": "enum", "enum_values": ["draft", "confirmed", "in_production", "shipped", "invoiced", "closed", "cancelled"], "required": true, "default": "draft", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "po_requested_ship_date", "name": "requested_ship_date", "type": "datetime", "required": true, "default": null, "validation": [{ "rule": "future_date", "allow_today": true }], "_render": ["dev", "api", "customer"] },
+        { "field_id": "po_total_amount", "name": "total_amount", "type": "decimal", "required": false, "default": null, "validation": [{ "rule": "min_value", "value": 0 }], "_render": ["dev", "api"] }
+      ],
+      "indexes": [
+        { "fields": ["customer_id", "status"], "unique": false },
+        { "fields": ["po_number"], "unique": true },
+        { "fields": ["requested_ship_date"], "unique": false }
+      ],
+      "soft_delete": false,
+      "audit_trail": true
+    },
+    {
+      "entity_id": "ent_job_order",
+      "name": "Job Order",
+      "plural_name": "Job Orders",
+      "_section_render": ["dev", "api"],
+      "description": "A shop floor work order created from a confirmed purchase order line item.",
+      "fields": [
+        { "field_id": "job_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "job_po_id", "name": "purchase_order_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_purchase_order" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_purchase_order", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "job_status", "name": "status", "type": "enum", "enum_values": ["draft", "released", "in_progress", "on_hold", "completed", "cancelled"], "required": true, "default": "draft", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "job_due_date", "name": "due_date", "type": "datetime", "required": true, "default": null, "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "job_quantity", "name": "quantity_ordered", "type": "integer", "required": true, "default": null, "validation": [{ "rule": "min_value", "value": 1 }], "_render": ["dev", "api"] }
+      ],
+      "indexes": [
+        { "fields": ["purchase_order_id", "status"], "unique": false },
+        { "fields": ["due_date"], "unique": false }
+      ],
+      "soft_delete": false,
+      "audit_trail": true
+    },
+    {
+      "entity_id": "ent_inventory",
+      "name": "Inventory",
+      "plural_name": "Inventory",
+      "_section_render": ["dev", "api"],
+      "description": "On-hand stock levels for each part at each storage location.",
+      "fields": [
+        { "field_id": "inv_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "inv_part_id", "name": "part_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_part" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_part", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "inv_location", "name": "location_code", "type": "string", "required": true, "default": null, "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "inv_qty_on_hand", "name": "quantity_on_hand", "type": "decimal", "required": true, "default": 0, "validation": [{ "rule": "min_value", "value": 0 }], "_render": ["dev", "api"] },
+        { "field_id": "inv_qty_reserved", "name": "quantity_reserved", "type": "decimal", "required": true, "default": 0, "validation": [{ "rule": "min_value", "value": 0 }], "_render": ["dev", "api"] }
+      ],
+      "indexes": [
+        { "fields": ["part_id", "location_code"], "unique": true }
+      ],
+      "soft_delete": false,
+      "audit_trail": true
+    },
+    {
+      "entity_id": "ent_shipment",
+      "name": "Shipment",
+      "plural_name": "Shipments",
+      "_section_render": ["dev", "api"],
+      "description": "A recorded outbound dispatch of completed goods to a customer.",
+      "fields": [
+        { "field_id": "ship_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "ship_job_id", "name": "job_order_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_job_order" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_job_order", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "ship_status", "name": "status", "type": "enum", "enum_values": ["pending", "dispatched", "in_transit", "delivered"], "required": true, "default": "pending", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "ship_tracking", "name": "tracking_number", "type": "string", "required": false, "default": null, "validation": [], "_render": ["dev", "api", "customer"] },
+        { "field_id": "ship_carrier", "name": "carrier", "type": "enum", "enum_values": ["fedex", "ups", "usps", "dhl", "customer_pickup", "other"], "required": true, "default": null, "validation": [], "_render": ["dev", "api", "customer"] },
+        { "field_id": "ship_dispatched_at", "name": "dispatched_at", "type": "datetime", "required": false, "default": null, "validation": [], "_render": ["dev", "api"] }
+      ],
+      "indexes": [
+        { "fields": ["job_order_id"], "unique": false },
+        { "fields": ["tracking_number"], "unique": false }
+      ],
+      "soft_delete": false,
+      "audit_trail": true
+    },
+    {
+      "entity_id": "ent_invoice",
+      "name": "Invoice",
+      "plural_name": "Invoices",
+      "_section_render": ["dev", "api"],
+      "description": "A billing document generated from a shipment, synced to QuickBooks Online.",
+      "fields": [
+        { "field_id": "inv_doc_id", "name": "id", "type": "uuid", "required": true, "default": "auto_generate", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "inv_shipment_id", "name": "shipment_id", "type": "uuid", "required": true, "default": null, "validation": [{ "rule": "exists", "entity_ref": "ent_shipment" }], "relationship": { "kind": "belongs_to", "entity_id": "ent_shipment", "cascade": "restrict" }, "_render": ["dev", "api"] },
+        { "field_id": "inv_status", "name": "status", "type": "enum", "enum_values": ["draft", "sent", "paid", "overdue", "voided"], "required": true, "default": "draft", "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "inv_total", "name": "total_amount", "type": "decimal", "required": true, "default": null, "validation": [{ "rule": "min_value", "value": 0 }], "_render": ["dev", "api"] },
+        { "field_id": "inv_qbo_id", "name": "external_qbo_id", "type": "string", "required": false, "default": null, "validation": [], "_render": ["dev", "api"] },
+        { "field_id": "inv_due_date", "name": "due_date", "type": "datetime", "required": true, "default": null, "validation": [], "_render": ["dev", "api", "customer"] }
+      ],
+      "indexes": [
+        { "fields": ["shipment_id"], "unique": true },
+        { "fields": ["status", "due_date"], "unique": false },
+        { "fields": ["external_qbo_id"], "unique": false }
+      ],
+      "soft_delete": false,
+      "audit_trail": true
+    }
+  ],
+
+  "feature_requirements": [
+    {
+      "feature_id": "feat_001",
+      "name": "Job Quoting Screen",
+      "type": "screen",
+      "_section_render": ["customer", "dev"],
+      "description": "Allows sales staff to build a cost estimate by selecting parts and quantities, with BOM costs rolling up automatically.",
+      "user_roles": ["sales_coordinator", "estimator"],
+      "data_entity_refs": ["ent_purchase_order", "ent_bom", "ent_part"],
+      "workflow_step_refs": ["wf_001_s01", "wf_001_s02"],
+      "business_justification": "Addresses pain point pp_001: reduces quote cycle time from 2–3 days to under 4 hours by surfacing BOM costs inline.",
+      "priority": "P1",
+      "effort_estimate": "medium",
+      "acceptance_criteria": [
+        "User can search and select parts by part number or description",
+        "Cost rolls up automatically from BOM with current standard material prices",
+        "Quote can be exported as PDF and emailed directly to customer",
+        "Draft quotes auto-save every 30 seconds"
+      ],
+      "ui_notes": {
+        "_render": ["dev"],
+        "layout": "two_panel",
+        "primary_actions": ["save_draft", "submit_for_approval", "export_pdf"]
+      }
+    },
+    {
+      "feature_id": "feat_002",
+      "name": "Real-Time Inventory Dashboard",
+      "type": "dashboard_widget",
+      "_section_render": ["customer", "dev"],
+      "description": "Displays on-hand inventory levels by part and location, with low-stock alerts.",
+      "user_roles": ["shop_floor_supervisor", "admin"],
+      "data_entity_refs": ["ent_inventory", "ent_part"],
+      "workflow_step_refs": ["wf_001_s03"],
+      "business_justification": "Addresses pain point pp_002: gives supervisors real-time visibility so they can set accurate delivery dates.",
+      "priority": "P1",
+      "effort_estimate": "small",
+      "acceptance_criteria": [
+        "Shows current quantity on hand and quantity reserved per part",
+        "Highlights parts below reorder point in red",
+        "Refreshes automatically every 60 seconds",
+        "Exportable to CSV"
+      ],
+      "ui_notes": {
+        "_render": ["dev"],
+        "layout": "table",
+        "primary_actions": ["filter_by_location", "export_csv", "set_reorder_point"]
+      }
+    },
+    {
+      "feature_id": "feat_003",
+      "name": "Automatic Invoice Generation",
+      "type": "background_job",
+      "_section_render": ["customer", "dev"],
+      "description": "On shipment dispatch, automatically creates an invoice from the job order and pushes it to QuickBooks Online.",
+      "user_roles": ["admin"],
+      "data_entity_refs": ["ent_shipment", "ent_invoice", "ent_purchase_order"],
+      "workflow_step_refs": ["wf_002_s01", "wf_002_s02"],
+      "business_justification": "Addresses pain point pp_003: eliminates 3–5 day delay in invoicing and removes manual double-entry.",
+      "priority": "P1",
+      "effort_estimate": "medium",
+      "acceptance_criteria": [
+        "Invoice is created within 60 seconds of shipment status changing to dispatched",
+        "Invoice line items match shipped quantities exactly",
+        "Invoice is pushed to QuickBooks and the QBO ID is stored on the ERP invoice record",
+        "Failed sync is retried up to 3 times with alerts on final failure"
+      ],
+      "ui_notes": null
+    },
+    {
+      "feature_id": "feat_004",
+      "name": "Shop Floor Job Board",
+      "type": "screen",
+      "_section_render": ["customer", "dev"],
+      "description": "Kanban-style view of all active job orders by status, allowing supervisors to update progress.",
+      "user_roles": ["shop_floor_supervisor"],
+      "data_entity_refs": ["ent_job_order", "ent_purchase_order"],
+      "workflow_step_refs": ["wf_001_s03"],
+      "business_justification": "Replaces the current whiteboard + spreadsheet system for tracking shop floor jobs.",
+      "priority": "P1",
+      "effort_estimate": "medium",
+      "acceptance_criteria": [
+        "Displays job orders grouped by status columns (Released, In Progress, On Hold, Completed)",
+        "Supervisor can drag cards between columns to update status",
+        "Shows due date and customer name on each card",
+        "Overdue jobs are highlighted in red"
+      ],
+      "ui_notes": {
+        "_render": ["dev"],
+        "layout": "dashboard",
+        "primary_actions": ["update_status", "add_note", "view_bom"]
+      }
+    },
+    {
+      "feature_id": "feat_005",
+      "name": "Purchase Order API Endpoints",
+      "type": "api_endpoint",
+      "_section_render": ["dev", "api"],
+      "description": "REST endpoints for creating, reading, updating, and listing purchase orders. Used by the customer portal and mobile app.",
+      "user_roles": ["admin", "sales_coordinator"],
+      "data_entity_refs": ["ent_purchase_order", "ent_customer"],
+      "workflow_step_refs": ["wf_001_s01", "wf_001_s02"],
+      "business_justification": "Required to support the customer self-service portal planned for phase 2.",
+      "priority": "P2",
+      "effort_estimate": "small",
+      "acceptance_criteria": [
+        "GET /api/v1/purchase-orders returns paginated list with cursor pagination",
+        "POST /api/v1/purchase-orders creates a draft PO",
+        "PATCH /api/v1/purchase-orders/:id updates status",
+        "All endpoints require JWT bearer auth",
+        "OpenAPI spec is auto-generated and kept in sync"
+      ],
+      "ui_notes": null
+    }
+  ],
+
+  "integration_points": [
+    {
+      "integration_id": "int_001",
+      "name": "QuickBooks Online",
+      "vendor": "Intuit",
+      "category": "accounting",
+      "_section_render": ["customer", "dev", "api"],
+      "description": "Syncs invoices and payments bidirectionally between the ERP and QuickBooks Online.",
+      "auth_method": {
+        "_value": "oauth2_authorization_code",
+        "_render": ["dev", "api"],
+        "_label": "Authentication Method"
+      },
+      "auth_config": {
+        "_render": ["dev", "api"],
+        "scopes": ["com.intuit.quickbooks.accounting"],
+        "token_endpoint": "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+        "refresh_strategy": "automatic_on_expiry"
+      },
+      "endpoints": [
+        {
+          "endpoint_id": "int_001_ep01",
+          "_render": ["dev", "api"],
+          "direction": "outbound",
+          "purpose": "Create invoice in QBO from ERP shipment dispatch",
+          "method": "POST",
+          "path": "/v3/company/{realmId}/invoice",
+          "trigger": "workflow_step",
+          "trigger_ref": "wf_002_s02",
+          "request_payload_entity_refs": ["ent_invoice"],
+          "response_handling": {
+            "success_action": "update_field",
+            "field_path": "ent_invoice.external_qbo_id",
+            "failure_action": "retry_with_backoff",
+            "max_retries": 3
+          }
+        },
+        {
+          "endpoint_id": "int_001_ep02",
+          "_render": ["dev", "api"],
+          "direction": "inbound",
+          "purpose": "Receive payment status updates from QBO via webhook",
+          "method": "WEBHOOK",
+          "path": "/api/v1/webhooks/qbo",
+          "trigger": "webhook",
+          "request_payload_entity_refs": ["ent_invoice"],
+          "response_handling": {
+            "success_action": "update_field",
+            "field_path": "ent_invoice.status",
+            "failure_action": "dead_letter",
+            "max_retries": 0
+          }
+        }
+      ],
+      "sync_frequency": "event_driven",
+      "data_mapping": [
+        {
+          "erp_entity_field": "ent_invoice.total_amount",
+          "external_field": "Invoice.TotalAmt",
+          "transform": "none"
+        },
+        {
+          "erp_entity_field": "ent_invoice.due_date",
+          "external_field": "Invoice.DueDate",
+          "transform": "format_date",
+          "transform_detail": "ISO 8601 to YYYY-MM-DD"
+        },
+        {
+          "erp_entity_field": "ent_customer.name",
+          "external_field": "Invoice.CustomerRef.name",
+          "transform": "none"
+        }
+      ],
+      "error_strategy": "dead_letter_queue_with_alert",
+      "business_justification": "Eliminates double-entry of invoices which currently costs ~3 hours/week and reduces payment reconciliation errors."
+    },
+    {
+      "integration_id": "int_002",
+      "name": "FedEx Ship Manager",
+      "vendor": "FedEx",
+      "category": "shipping",
+      "_section_render": ["customer", "dev", "api"],
+      "description": "Creates shipping labels and retrieves tracking numbers when a shipment is dispatched.",
+      "auth_method": {
+        "_value": "oauth2_client_credentials",
+        "_render": ["dev", "api"],
+        "_label": "Authentication Method"
+      },
+      "auth_config": {
+        "_render": ["dev", "api"],
+        "token_endpoint": "https://apis.fedex.com/oauth/token",
+        "refresh_strategy": "automatic_on_expiry"
+      },
+      "endpoints": [
+        {
+          "endpoint_id": "int_002_ep01",
+          "_render": ["dev", "api"],
+          "direction": "outbound",
+          "purpose": "Create shipping label and get tracking number",
+          "method": "POST",
+          "path": "/ship/v1/shipments",
+          "trigger": "workflow_step",
+          "trigger_ref": "wf_002_s01",
+          "request_payload_entity_refs": ["ent_shipment"],
+          "response_handling": {
+            "success_action": "update_field",
+            "field_path": "ent_shipment.tracking_number",
+            "failure_action": "alert",
+            "max_retries": 2
+          }
+        }
+      ],
+      "sync_frequency": "event_driven",
+      "data_mapping": [
+        {
+          "erp_entity_field": "ent_shipment.tracking_number",
+          "external_field": "output.transactionShipments[0].masterTrackingNumber",
+          "transform": "none"
+        }
+      ],
+      "error_strategy": "retry_with_backoff",
+      "business_justification": "Eliminates manual label printing and automatic populates tracking numbers on shipment records and customer notifications."
+    }
+  ],
+
+  "ai_touchpoints": [
+    {
+      "touchpoint_id": "ai_001",
+      "name": "PO Line Item Extraction",
+      "agent_type": "auto_draft",
+      "_section_render": ["customer", "dev"],
+      "description": "When a customer PDF purchase order is uploaded, the agent reads it and pre-fills all line item fields, reducing manual data entry.",
+      "step_refs": ["wf_001_s01"],
+      "trigger": {
+        "event": "file_uploaded",
+        "condition": "file.mime_type == 'application/pdf' AND context == 'purchase_order_intake'"
+      },
+      "input_context": {
+        "provided_to_agent": ["uploaded_file_content", "ent_customer.preferred_part_numbers", "ent_part.catalog"],
+        "context_window_strategy": "rag_from_part_catalog"
+      },
+      "expected_output": {
+        "format": "structured_json",
+        "target_entity_ref": "ent_purchase_order",
+        "fields_populated": ["line_items", "requested_ship_date", "po_number"]
+      },
+      "human_in_the_loop": {
+        "required": true,
+        "review_before_commit": true,
+        "diff_display": true
+      },
+      "fallback": {
+        "strategy": "graceful_degrade",
+        "description": "If confidence < 0.85, flag individual fields for manual review rather than blocking the entire form"
+      },
+      "confidence_threshold": 0.85,
+      "model_preference": "claude-sonnet",
+      "business_justification": "Addresses pain point pp_001: eliminates manual re-typing of incoming PDFs, which is the primary source of quoting delay."
+    },
+    {
+      "touchpoint_id": "ai_002",
+      "name": "PO Anomaly Validator",
+      "agent_type": "validation",
+      "_section_render": ["customer", "dev"],
+      "description": "When a PO is submitted for confirmation, the agent checks for anomalies: unusually low prices, parts the customer has never ordered before, quantities far outside historical norms.",
+      "step_refs": ["wf_001_s02"],
+      "trigger": {
+        "event": "po_status_changed",
+        "condition": "new_status == 'confirmed'"
+      },
+      "input_context": {
+        "provided_to_agent": ["ent_purchase_order", "ent_customer.order_history_summary", "ent_part.price_history"],
+        "context_window_strategy": "entity_snapshot"
+      },
+      "expected_output": {
+        "format": "structured_json",
+        "target_entity_ref": "ent_purchase_order",
+        "fields_populated": ["anomaly_flags", "anomaly_summary"]
+      },
+      "human_in_the_loop": {
+        "required": false,
+        "review_before_commit": false,
+        "diff_display": false
+      },
+      "fallback": {
+        "strategy": "skip_and_notify",
+        "description": "If the agent fails, log the error and proceed with confirmation — do not block the workflow"
+      },
+      "confidence_threshold": 0.75,
+      "model_preference": "claude-haiku",
+      "business_justification": "Catches pricing errors and unusual orders before they reach the shop floor, reducing costly rework."
+    },
+    {
+      "touchpoint_id": "ai_003",
+      "name": "Invoice Reconciliation Assistant",
+      "agent_type": "summarization",
+      "_section_render": ["customer", "dev"],
+      "description": "When a payment webhook arrives from QuickBooks, the agent reconciles it against open invoices and generates a human-readable payment summary for the accounting team.",
+      "step_refs": ["wf_002_s02"],
+      "trigger": {
+        "event": "webhook_received",
+        "condition": "webhook.source == 'qbo' AND webhook.event_type == 'Payment.Create'"
+      },
+      "input_context": {
+        "provided_to_agent": ["webhook_payload", "ent_invoice.open_invoices_for_customer"],
+        "context_window_strategy": "entity_snapshot"
+      },
+      "expected_output": {
+        "format": "markdown_text",
+        "target_entity_ref": "ent_invoice",
+        "fields_populated": ["reconciliation_note"]
+      },
+      "human_in_the_loop": {
+        "required": false,
+        "review_before_commit": false,
+        "diff_display": false
+      },
+      "fallback": {
+        "strategy": "skip_and_notify",
+        "description": "If the agent fails, record the raw webhook payload and notify the accounting team to reconcile manually"
+      },
+      "confidence_threshold": 0.9,
+      "model_preference": "claude-haiku",
+      "business_justification": "Reduces the time accounting spends manually matching payments to invoices in QBO."
+    }
+  ],
+
+  "development_standards": {
+    "_section_render": ["dev", "api"],
+    "api_style": "rest_json",
+    "api_versioning_strategy": "url_prefix",
+    "api_base_path": "/api/v1",
+    "auth_mechanism": "jwt_bearer",
+    "architecture_pattern": "modular_monolith",
+    "database_type": "relational",
+    "orm_preference": "tbd",
+    "test_coverage_threshold": 80,
+    "roles": [
+      { "role_id": "sales_coordinator", "display_name": "Sales Coordinator", "description": "Handles incoming orders and customer communication" },
+      { "role_id": "estimator", "display_name": "Estimator", "description": "Builds cost quotes from BOMs" },
+      { "role_id": "shop_floor_supervisor", "display_name": "Shop Floor Supervisor", "description": "Manages production job assignments and shop floor status" },
+      { "role_id": "shipping_clerk", "display_name": "Shipping Clerk", "description": "Records outbound shipments and prints labels" },
+      { "role_id": "admin", "display_name": "System Administrator", "description": "Full access to all modules and configuration" }
+    ],
+    "documentation_rules": {
+      "require_jsdoc_on_public_functions": true,
+      "require_openapi_for_all_endpoints": true,
+      "require_entity_relationship_diagram": true,
+      "inline_comment_style": "explain_why_not_what"
+    },
+    "api_conventions": {
+      "id_format": "uuid_v4",
+      "timestamp_format": "ISO_8601_UTC",
+      "pagination_style": "cursor",
+      "error_envelope": {
+        "_render": ["dev", "api"],
+        "shape": "{ code: string, message: string, details: object[], request_id: string }"
+      },
+      "success_envelope": {
+        "_render": ["dev", "api"],
+        "shape": "{ data: T, meta: { total?: number, cursor_next?: string } }"
+      }
+    },
+    "text_blocks": [
+      {
+        "block_id": "tb_001",
+        "title": "Naming Conventions",
+        "audience": ["dev"],
+        "content": "Database columns use snake_case. TypeScript types and interfaces use PascalCase. API endpoints use kebab-case nouns (plural). Boolean fields are prefixed with is_ or has_. Event names use past tense (po_confirmed, shipment_dispatched)."
+      },
+      {
+        "block_id": "tb_002",
+        "title": "Module Boundaries",
+        "audience": ["dev"],
+        "content": "Each core workflow maps to one module directory (orders/, production/, fulfillment/, billing/). Modules may not import directly from sibling modules — all cross-module calls go through a shared service interface layer at src/services/. Shared domain types live in src/domain/."
+      },
+      {
+        "block_id": "tb_003",
+        "title": "Error Handling Policy",
+        "audience": ["dev", "api"],
+        "content": "All errors thrown from service layer must be typed (OrderNotFoundError, ValidationError, etc.) and map to a specific HTTP status code in the API layer. Never catch and swallow errors silently. Integration errors are logged to the dead-letter queue before re-throwing."
+      },
+      {
+        "block_id": "tb_004",
+        "title": "Testing Requirements",
+        "audience": ["dev"],
+        "content": "Unit tests cover business logic in service layer. Integration tests hit a real test database (no mocks for DB calls). E2E tests cover the happy path for each core workflow. Test files live alongside source files using .test.ts suffix."
+      }
+    ]
+  },
+
+  "history": [
+    {
+      "version": "1.0.0",
+      "timestamp": "2026-04-06T14:00:00Z",
+      "author": "interview_agent_v1",
+      "change_type": "initial_creation",
+      "summary": "Initial spec created from intake interview session #INV-2026-0042",
+      "changed_sections": ["business_profile", "core_workflows", "data_entities", "feature_requirements", "development_standards"],
+      "rationale": "Customer completed the standard intake interview. Workflows cover order intake and basic fulfillment. Data entities are first-pass — BOM complexity and costing rules to be confirmed in follow-up session. QuickBooks and FedEx integrations noted as likely but not yet confirmed."
+    },
+    {
+      "version": "1.1.0",
+      "timestamp": "2026-04-07T09:30:00Z",
+      "author": "human:jane.doe@erpforge.io",
+      "change_type": "integration_added",
+      "summary": "Added QuickBooks Online and FedEx Ship Manager integration points; added three AI touchpoints",
+      "changed_sections": ["integration_points", "ai_touchpoints", "feature_requirements"],
+      "rationale": "Customer confirmed in follow-up call that QBO and FedEx are both non-negotiable for phase 1. Previously marked as likely. Also confirmed they want AI-assisted PO data entry (ai_001) as a phase 1 feature after seeing the demo — this is their biggest pain point."
+    }
+  ]
+}

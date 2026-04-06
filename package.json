@@ -1,0 +1,23 @@
+{
+  "name": "erpforge",
+  "version": "0.1.0",
+  "description": "ERP Forge — custom ERP generator for small manufacturers",
+  "main": "dist/interviewer/cli.js",
+  "scripts": {
+    "build": "tsc",
+    "interview": "node dist/interviewer/cli.js",
+    "dev:interview": "ts-node interviewer/cli.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.54.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}

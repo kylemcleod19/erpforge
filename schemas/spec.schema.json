@@ -1,0 +1,839 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://erpforge.io/schemas/spec.schema.json",
+  "title": "ERP Forge Customer Spec",
+  "description": "Versioned product spec schema for ERP Forge. Serves three audiences: customer PDF, Claude Code dev plan, and API integration spec.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "spec_version",
+    "spec_id",
+    "created_at",
+    "updated_at",
+    "created_by",
+    "business_profile",
+    "core_workflows",
+    "data_entities",
+    "feature_requirements",
+    "integration_points",
+    "ai_touchpoints",
+    "development_standards",
+    "history"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Version of spec.schema.json this document conforms to"
+    },
+    "spec_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver of this customer spec. MAJOR=re-scope, MINOR=section/entity added, PATCH=correction"
+    },
+    "spec_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Stable UUID for this spec document, never changes across versions"
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "created_by": {
+      "type": "string",
+      "description": "ID of the agent or user that created the spec. Format: interview_agent_v1 or human:email@domain.com"
+    },
+    "business_profile": { "$ref": "#/$defs/BusinessProfile" },
+    "core_workflows": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/CoreWorkflow" }
+    },
+    "data_entities": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/DataEntity" }
+    },
+    "feature_requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/FeatureRequirement" }
+    },
+    "integration_points": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/IntegrationPoint" }
+    },
+    "ai_touchpoints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/AITouchpoint" }
+    },
+    "development_standards": { "$ref": "#/$defs/DevelopmentStandards" },
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/HistoryEntry" },
+      "description": "Append-only change log. Never modify or remove existing entries."
+    }
+  },
+
+  "$defs": {
+
+    "RenderAudience": {
+      "type": "string",
+      "enum": ["customer", "dev", "api"],
+      "description": "Which audience a field or section is visible to"
+    },
+
+    "RenderAudienceArray": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/RenderAudience" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+
+    "StringEnvelope": {
+      "type": "object",
+      "required": ["_value", "_render"],
+      "additionalProperties": false,
+      "properties": {
+        "_value": { "type": "string" },
+        "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "_label": { "type": "string" },
+        "_hint": { "type": "string" }
+      }
+    },
+
+    "ArrayEnvelope": {
+      "type": "object",
+      "required": ["_value", "_render"],
+      "additionalProperties": false,
+      "properties": {
+        "_value": { "type": "array" },
+        "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "_label": { "type": "string" },
+        "_hint": { "type": "string" }
+      }
+    },
+
+    "ObjectEnvelope": {
+      "type": "object",
+      "required": ["_value", "_render"],
+      "properties": {
+        "_value": { "type": "object" },
+        "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "_label": { "type": "string" },
+        "_hint": { "type": "string" }
+      }
+    },
+
+    "BusinessProfile": {
+      "type": "object",
+      "required": ["company_name", "industry", "company_size", "revenue_model", "pain_points", "success_metrics"],
+      "additionalProperties": false,
+      "properties": {
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "company_name": { "type": "string", "minLength": 1 },
+        "industry": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "contract_manufacturing", "discrete_manufacturing", "process_manufacturing",
+                "job_shop", "assembly", "fabrication", "food_and_beverage",
+                "electronics", "aerospace", "automotive", "medical_devices", "other"
+              ]
+            },
+            { "$ref": "#/$defs/StringEnvelope" }
+          ]
+        },
+        "industry_display": { "type": "string" },
+        "company_size": {
+          "type": "object",
+          "required": ["employees", "annual_revenue_band"],
+          "additionalProperties": false,
+          "properties": {
+            "employees": { "type": "integer", "minimum": 1 },
+            "annual_revenue_band": {
+              "type": "string",
+              "enum": ["under_1M", "1M_10M", "10M_50M", "50M_plus"]
+            },
+            "manufacturing_sites": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "revenue_model": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "job_shop", "blanket_orders", "make_to_stock", "make_to_order",
+                  "engineer_to_order", "configure_to_order", "contract_manufacturing",
+                  "distribution", "repair_and_overhaul", "subscription", "other"
+                ]
+              },
+              "minItems": 1
+            },
+            { "$ref": "#/$defs/ArrayEnvelope" }
+          ]
+        },
+        "revenue_model_description": { "type": "string" },
+        "pain_points": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "severity"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^pp_\\d+$" },
+              "description": { "type": "string" },
+              "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+              "_render": { "$ref": "#/$defs/RenderAudienceArray" }
+            }
+          }
+        },
+        "success_metrics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^sm_\\d+$" },
+              "description": { "type": "string" },
+              "_render": { "$ref": "#/$defs/RenderAudienceArray" }
+            }
+          }
+        }
+      }
+    },
+
+    "WorkflowActor": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["human", "system", "external"] },
+        "role": {
+          "type": "string",
+          "description": "Required when type=human. Must reference a role_id in development_standards.roles"
+        },
+        "system_id": {
+          "type": "string",
+          "description": "Required when type=system. References integration_points[].integration_id"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name for external actors"
+        }
+      }
+    },
+
+    "EntityRef": {
+      "type": "object",
+      "required": ["entity_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "entity_ref": {
+          "type": "string",
+          "description": "References data_entities[].entity_id"
+        },
+        "state": {
+          "type": "string",
+          "description": "Entity state after this step (e.g. draft, confirmed)"
+        },
+        "source": {
+          "type": "string",
+          "description": "Origin of the input (e.g. email_or_upload, user_form)"
+        }
+      }
+    },
+
+    "WorkflowRule": {
+      "type": "object",
+      "required": ["rule_id", "type", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": { "type": "string", "pattern": "^r_\\d+$" },
+        "type": {
+          "type": "string",
+          "enum": ["required_field", "conditional", "validation", "approval", "notification", "system_check"]
+        },
+        "description": { "type": "string" }
+      }
+    },
+
+    "WorkflowStep": {
+      "type": "object",
+      "required": ["step_id", "sequence", "name", "actor", "action", "system"],
+      "additionalProperties": false,
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "pattern": "^wf_\\d+_s\\d+$",
+          "description": "Format: wf_{workflow_number}_s{step_number}"
+        },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string" },
+        "_label": { "type": "string", "description": "Human-friendly label for PDF rendering" },
+        "actor": { "$ref": "#/$defs/WorkflowActor" },
+        "action": { "type": "string", "description": "snake_case verb describing the action" },
+        "system": { "type": "string", "description": "Module or system where action occurs" },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityRef" }
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityRef" }
+        },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/WorkflowRule" }
+        },
+        "ai_touchpoint_ref": {
+          "type": ["string", "null"],
+          "description": "References ai_touchpoints[].touchpoint_id"
+        },
+        "estimated_frequency": {
+          "type": "string",
+          "enum": ["realtime", "hourly", "daily", "weekly", "monthly", "on_demand", "event_driven"]
+        },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "CoreWorkflow": {
+      "type": "object",
+      "required": ["workflow_id", "name", "description", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "workflow_id": { "type": "string", "pattern": "^wf_\\d+$" },
+        "name": { "type": "string" },
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "description": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/WorkflowStep" }
+        }
+      }
+    },
+
+    "FieldType": {
+      "type": "string",
+      "enum": ["string", "integer", "decimal", "boolean", "datetime", "uuid", "enum", "json_blob", "file_ref", "text"]
+    },
+
+    "ValidationRule": {
+      "type": "object",
+      "required": ["rule"],
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "type": "string",
+          "enum": ["required", "min_length", "max_length", "min_value", "max_value", "regex", "exists", "future_date", "unique"]
+        },
+        "value": { "description": "Rule parameter (e.g. min_length: 3)" },
+        "entity_ref": { "type": "string", "description": "For exists rule: the entity_id to check against" },
+        "allow_today": { "type": "boolean", "description": "For future_date rule" }
+      }
+    },
+
+    "FieldRelationship": {
+      "type": "object",
+      "required": ["kind", "entity_id"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["belongs_to", "has_many", "many_to_many"] },
+        "entity_id": { "type": "string", "description": "References data_entities[].entity_id" },
+        "cascade": { "type": "string", "enum": ["cascade", "restrict", "set_null", "no_action"] }
+      }
+    },
+
+    "FieldDescriptor": {
+      "type": "object",
+      "required": ["field_id", "name", "type", "required"],
+      "additionalProperties": false,
+      "properties": {
+        "field_id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/$defs/FieldType" },
+        "required": { "type": "boolean" },
+        "default": { "description": "Default value, or null, or the string 'auto_generate'" },
+        "enum_values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required when type=enum"
+        },
+        "validation": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ValidationRule" }
+        },
+        "relationship": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/FieldRelationship" }
+          ]
+        },
+        "_render": { "$ref": "#/$defs/RenderAudienceArray" }
+      }
+    },
+
+    "EntityIndex": {
+      "type": "object",
+      "required": ["fields"],
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "unique": { "type": "boolean" }
+      }
+    },
+
+    "DataEntity": {
+      "type": "object",
+      "required": ["entity_id", "name", "plural_name", "description", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": { "type": "string", "pattern": "^ent_[a-z_]+$" },
+        "name": { "type": "string" },
+        "plural_name": { "type": "string" },
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "description": { "type": "string" },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/FieldDescriptor" }
+        },
+        "indexes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityIndex" }
+        },
+        "soft_delete": { "type": "boolean" },
+        "audit_trail": { "type": "boolean" }
+      }
+    },
+
+    "UINote": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "layout": {
+          "type": "string",
+          "enum": ["single_panel", "two_panel", "wizard", "dashboard", "list_detail", "form", "table", "modal"]
+        },
+        "primary_actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "FeatureRequirement": {
+      "type": "object",
+      "required": ["feature_id", "name", "type", "description", "priority", "acceptance_criteria"],
+      "additionalProperties": false,
+      "properties": {
+        "feature_id": { "type": "string", "pattern": "^feat_\\d+$" },
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["screen", "report", "background_job", "notification", "api_endpoint", "dashboard_widget", "bulk_import", "workflow_automation"]
+        },
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "description": { "type": "string" },
+        "user_roles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "References development_standards.roles[].role_id"
+        },
+        "data_entity_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "References data_entities[].entity_id"
+        },
+        "workflow_step_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "References core_workflows[].steps[].step_id"
+        },
+        "business_justification": { "type": "string" },
+        "priority": {
+          "type": "string",
+          "enum": ["P1", "P2", "P3"],
+          "description": "P1=must-have MVP, P2=phase 2, P3=nice-to-have"
+        },
+        "effort_estimate": {
+          "type": "string",
+          "enum": ["trivial", "small", "medium", "large", "extra_large"]
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "ui_notes": { "oneOf": [{ "$ref": "#/$defs/UINote" }, { "type": "null" }] }
+      }
+    },
+
+    "IntegrationEndpoint": {
+      "type": "object",
+      "required": ["endpoint_id", "direction", "purpose", "method", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "endpoint_id": { "type": "string" },
+        "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "direction": { "type": "string", "enum": ["inbound", "outbound", "bidirectional"] },
+        "purpose": { "type": "string" },
+        "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "WEBHOOK"] },
+        "path": { "type": "string" },
+        "trigger": {
+          "type": "string",
+          "enum": ["workflow_step", "schedule", "event", "manual", "webhook"]
+        },
+        "trigger_ref": {
+          "type": "string",
+          "description": "References core_workflows[].steps[].step_id when trigger=workflow_step"
+        },
+        "request_payload_entity_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "response_handling": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "success_action": { "type": "string", "enum": ["update_field", "create_record", "trigger_workflow", "ignore"] },
+            "field_path": { "type": "string" },
+            "failure_action": { "type": "string", "enum": ["retry_with_backoff", "dead_letter", "alert", "ignore"] },
+            "max_retries": { "type": "integer", "minimum": 0, "maximum": 10 }
+          }
+        }
+      }
+    },
+
+    "DataMapping": {
+      "type": "object",
+      "required": ["erp_entity_field", "external_field"],
+      "additionalProperties": false,
+      "properties": {
+        "erp_entity_field": { "type": "string", "description": "Format: entity_id.field_name" },
+        "external_field": { "type": "string" },
+        "transform": {
+          "type": "string",
+          "enum": ["none", "format_date", "currency_convert", "string_to_number", "enum_map", "custom"]
+        },
+        "transform_detail": { "type": "string" }
+      }
+    },
+
+    "IntegrationPoint": {
+      "type": "object",
+      "required": ["integration_id", "name", "vendor", "category", "description", "auth_method", "endpoints", "error_strategy"],
+      "additionalProperties": false,
+      "properties": {
+        "integration_id": { "type": "string", "pattern": "^int_\\d+$" },
+        "name": { "type": "string" },
+        "vendor": { "type": "string" },
+        "category": {
+          "type": "string",
+          "enum": ["accounting", "shipping", "ecommerce", "crm", "payment", "email", "document_storage", "edi", "supplier_portal", "custom"]
+        },
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "description": { "type": "string" },
+        "auth_method": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": ["api_key_header", "api_key_query", "oauth2_authorization_code", "oauth2_client_credentials", "basic_auth", "webhook_hmac", "mtls"]
+            },
+            { "$ref": "#/$defs/StringEnvelope" }
+          ]
+        },
+        "auth_config": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+            "scopes": { "type": "array", "items": { "type": "string" } },
+            "token_endpoint": { "type": "string" },
+            "refresh_strategy": {
+              "type": "string",
+              "enum": ["automatic_on_expiry", "manual", "long_lived_token", "none"]
+            }
+          }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/IntegrationEndpoint" }
+        },
+        "sync_frequency": {
+          "type": "string",
+          "enum": ["realtime", "event_driven", "every_5_min", "every_15_min", "hourly", "daily", "manual"]
+        },
+        "data_mapping": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DataMapping" }
+        },
+        "error_strategy": {
+          "type": "string",
+          "enum": ["fail_fast", "retry_with_backoff", "dead_letter_queue_with_alert", "ignore_and_log"]
+        },
+        "business_justification": { "type": "string" }
+      }
+    },
+
+    "AITrigger": {
+      "type": "object",
+      "required": ["event"],
+      "additionalProperties": false,
+      "properties": {
+        "event": { "type": "string" },
+        "condition": { "type": "string", "description": "Optional expression evaluated at runtime" }
+      }
+    },
+
+    "AIInputContext": {
+      "type": "object",
+      "required": ["provided_to_agent", "context_window_strategy"],
+      "additionalProperties": false,
+      "properties": {
+        "provided_to_agent": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of data references passed to the agent"
+        },
+        "context_window_strategy": {
+          "type": "string",
+          "enum": ["full_document", "rag_from_part_catalog", "recent_history", "entity_snapshot", "none"]
+        }
+      }
+    },
+
+    "AIExpectedOutput": {
+      "type": "object",
+      "required": ["format"],
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["structured_json", "markdown_text", "boolean", "classification_label", "ranked_list", "diff_patch"]
+        },
+        "target_entity_ref": { "type": "string" },
+        "fields_populated": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "AIHumanInTheLoop": {
+      "type": "object",
+      "required": ["required"],
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean" },
+        "review_before_commit": { "type": "boolean" },
+        "diff_display": { "type": "boolean" }
+      }
+    },
+
+    "AIFallback": {
+      "type": "object",
+      "required": ["strategy", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["graceful_degrade", "skip_and_notify", "block_and_escalate", "retry_with_reduced_scope"]
+        },
+        "description": { "type": "string" }
+      }
+    },
+
+    "AITouchpoint": {
+      "type": "object",
+      "required": ["touchpoint_id", "name", "agent_type", "description", "step_refs", "trigger", "input_context", "expected_output", "human_in_the_loop", "fallback"],
+      "additionalProperties": false,
+      "properties": {
+        "touchpoint_id": { "type": "string", "pattern": "^ai_\\d+$" },
+        "name": { "type": "string" },
+        "agent_type": {
+          "type": "string",
+          "enum": ["suggestion", "validation", "auto_draft", "anomaly_detection", "summarization", "classification", "routing", "forecasting"]
+        },
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "description": { "type": "string" },
+        "step_refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "References core_workflows[].steps[].step_id"
+        },
+        "trigger": { "$ref": "#/$defs/AITrigger" },
+        "input_context": { "$ref": "#/$defs/AIInputContext" },
+        "expected_output": { "$ref": "#/$defs/AIExpectedOutput" },
+        "human_in_the_loop": { "$ref": "#/$defs/AIHumanInTheLoop" },
+        "fallback": { "$ref": "#/$defs/AIFallback" },
+        "confidence_threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "model_preference": {
+          "type": "string",
+          "enum": ["claude-haiku", "claude-sonnet", "claude-opus"],
+          "description": "Hint to the orchestrator. Not a hard constraint."
+        },
+        "business_justification": { "type": "string" }
+      }
+    },
+
+    "UserRole": {
+      "type": "object",
+      "required": ["role_id", "display_name", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "role_id": { "type": "string" },
+        "display_name": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+
+    "DocumentationRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_jsdoc_on_public_functions": { "type": "boolean" },
+        "require_openapi_for_all_endpoints": { "type": "boolean" },
+        "require_entity_relationship_diagram": { "type": "boolean" },
+        "inline_comment_style": {
+          "type": "string",
+          "enum": ["explain_why_not_what", "explain_what", "minimal", "none"]
+        }
+      }
+    },
+
+    "APIConventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id_format": { "type": "string", "enum": ["uuid_v4", "uuid_v7", "cuid2", "nanoid", "integer_autoincrement"] },
+        "timestamp_format": { "type": "string", "enum": ["ISO_8601_UTC", "unix_ms", "unix_s"] },
+        "pagination_style": { "type": "string", "enum": ["cursor", "offset_limit", "page_number"] },
+        "error_envelope": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+            "shape": { "type": "string" }
+          }
+        },
+        "success_envelope": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "_render": { "$ref": "#/$defs/RenderAudienceArray" },
+            "shape": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "TextBlock": {
+      "type": "object",
+      "required": ["block_id", "title", "audience", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "block_id": { "type": "string", "pattern": "^tb_\\d+$" },
+        "title": { "type": "string" },
+        "audience": { "$ref": "#/$defs/RenderAudienceArray" },
+        "content": { "type": "string" }
+      }
+    },
+
+    "DevelopmentStandards": {
+      "type": "object",
+      "required": ["api_style", "auth_mechanism", "architecture_pattern", "roles"],
+      "additionalProperties": false,
+      "properties": {
+        "_section_render": { "$ref": "#/$defs/RenderAudienceArray" },
+        "api_style": {
+          "type": "string",
+          "enum": ["rest_json", "graphql", "grpc", "rest_json_and_graphql"]
+        },
+        "api_versioning_strategy": {
+          "type": "string",
+          "enum": ["url_prefix", "header", "query_param"]
+        },
+        "api_base_path": { "type": "string" },
+        "auth_mechanism": {
+          "type": "string",
+          "enum": ["jwt_bearer", "session_cookie", "api_key", "oauth2"]
+        },
+        "architecture_pattern": {
+          "type": "string",
+          "enum": ["modular_monolith", "microservices", "serverless", "monolith"]
+        },
+        "database_type": {
+          "type": "string",
+          "enum": ["relational", "document", "graph", "time_series", "relational_and_document"]
+        },
+        "orm_preference": { "type": "string" },
+        "test_coverage_threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "roles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UserRole" },
+          "minItems": 1
+        },
+        "documentation_rules": { "$ref": "#/$defs/DocumentationRules" },
+        "api_conventions": { "$ref": "#/$defs/APIConventions" },
+        "text_blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TextBlock" }
+        }
+      }
+    },
+
+    "HistoryEntry": {
+      "type": "object",
+      "required": ["version", "timestamp", "author", "change_type", "summary", "changed_sections", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "author": {
+          "type": "string",
+          "description": "Format: interview_agent_v1 or human:email@domain.com"
+        },
+        "change_type": {
+          "type": "string",
+          "enum": [
+            "initial_creation", "section_added", "section_removed", "field_updated",
+            "workflow_revised", "integration_added", "ai_touchpoint_added",
+            "standards_updated", "correction"
+          ]
+        },
+        "summary": { "type": "string" },
+        "changed_sections": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "rationale": { "type": "string" }
+      }
+    }
+
+  }
+}

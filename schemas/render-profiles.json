@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://erpforge.io/schemas/render-profiles.json",
+  "description": "Declares the three rendering audiences for ERP Forge spec documents. Each profile controls which fields and sections are included in output, and provides format hints for the renderer.",
+  "profiles": [
+    {
+      "profile_id": "customer",
+      "display_name": "Customer Summary",
+      "description": "Human-readable business summary for customer review and sign-off. Strips all technical implementation details.",
+      "include_render_flags": ["customer"],
+      "include_bare_fields": true,
+      "format_hints": {
+        "output_format": "pdf",
+        "pdf_friendly": true,
+        "include_cover_page": true,
+        "include_table_of_contents": true,
+        "font_family": "sans-serif",
+        "page_size": "letter",
+        "show_section_headers": true,
+        "sections_to_include": [
+          "business_profile",
+          "core_workflows",
+          "feature_requirements",
+          "integration_points",
+          "ai_touchpoints"
+        ],
+        "sections_to_exclude": [
+          "data_entities",
+          "development_standards",
+          "history"
+        ],
+        "strip_fields_prefixed_with": ["_"],
+        "version_display": "spec_version only",
+        "audience_note": "This document describes what we are building for you. Please review and confirm before development begins."
+      }
+    },
+    {
+      "profile_id": "dev",
+      "display_name": "Development Plan",
+      "description": "Full technical specification for Claude Code and developers. Includes all sections, data shapes, and implementation-specific details.",
+      "include_render_flags": ["dev"],
+      "include_bare_fields": true,
+      "format_hints": {
+        "output_format": "markdown",
+        "pdf_friendly": false,
+        "include_cover_page": false,
+        "include_table_of_contents": true,
+        "show_section_headers": true,
+        "include_code_shapes": true,
+        "include_entity_relationship_hints": true,
+        "sections_to_include": [
+          "business_profile",
+          "core_workflows",
+          "data_entities",
+          "feature_requirements",
+          "integration_points",
+          "ai_touchpoints",
+          "development_standards",
+          "history"
+        ],
+        "strip_fields_prefixed_with": [],
+        "version_display": "spec_version and schema_version",
+        "rendering_notes": [
+          "Render data entities as TypeScript interface sketches where possible",
+          "Render workflow steps as numbered task lists with actor and system labels",
+          "Render feature acceptance criteria as checkboxes",
+          "Render AI touchpoints with confidence threshold and model preference prominently"
+        ]
+      }
+    },
+    {
+      "profile_id": "api",
+      "display_name": "API Integration Spec",
+      "description": "Integration-focused view for external developers connecting to the ERP. Shows API conventions, integration endpoints, authentication, and data shapes.",
+      "include_render_flags": ["api"],
+      "include_bare_fields": true,
+      "format_hints": {
+        "output_format": "markdown",
+        "pdf_friendly": false,
+        "include_cover_page": false,
+        "include_table_of_contents": true,
+        "show_section_headers": true,
+        "include_code_shapes": true,
+        "include_openapi_hints": true,
+        "sections_to_include": [
+          "data_entities",
+          "feature_requirements",
+          "integration_points",
+          "development_standards"
+        ],
+        "sections_to_exclude": [
+          "business_profile",
+          "core_workflows",
+          "ai_touchpoints",
+          "history"
+        ],
+        "strip_fields_prefixed_with": [],
+        "version_display": "spec_version only",
+        "rendering_notes": [
+          "Render data entity fields as OpenAPI schema objects",
+          "Render integration endpoints in OpenAPI path format",
+          "Render error and success envelopes as OpenAPI response schemas",
+          "Show authentication method and config prominently at the top of each integration section"
+        ]
+      }
+    }
+  ],
+  "rendering_rules": {
+    "field_inclusion_logic": "A field is included in a profile if: (a) the field has no _render array (bare field) AND include_bare_fields is true, OR (b) the field has a _render array that contains at least one of the profile's include_render_flags.",
+    "section_inclusion_logic": "A section is included if: (a) the section is in sections_to_include (or sections_to_include is absent), AND (b) not in sections_to_exclude, AND (c) the section's _section_render contains at least one of the profile's include_render_flags (or _section_render is absent).",
+    "envelope_unwrapping": "When a field is an envelope object (_value, _render, _label, _hint), the renderer must output _value as the field value, using _label as the display key if present, and _hint as tooltip or footnote if present.",
+    "bare_field_passthrough": "Bare fields (not wrapped in an envelope) are included for all profiles when include_bare_fields is true."
+  }
+}
