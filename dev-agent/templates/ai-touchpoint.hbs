@@ -1,0 +1,98 @@
+/**
+ * {{touchpointName}} — AI Touchpoint Handler
+ * Implements spec section: {{touchpointId}}
+ * Trigger: {{trigger}}
+ * Agent type: {{agentType}}
+ * Model: {{modelId}}
+ */
+
+import anthropic from "@/lib/ai/client";
+
+/** Output structure for {{touchpointName}} */
+export interface {{OutputType}} {
+{{#each outputFields}}
+  {{fieldId}}: {{tsType}};
+{{/each}}
+  /** Confidence score 0–1 returned by the model */
+  confidence?: number;
+{{#if humanInTheLoop}}
+  /** Whether this result requires human review before applying */
+  pending_review: boolean;
+{{/if}}
+}
+
+/**
+ * {{touchpointDescription}}
+ * Called when: {{trigger}}
+ *
+ * @param input - Context provided to the AI agent
+ * @returns Parsed AI output{{#if humanInTheLoop}} — check pending_review before applying{{/if}}
+ * @throws Error if confidence is below threshold ({{confidenceThreshold}}) and no fallback is available
+ */
+export async function {{functionName}}(input: {
+{{#each inputFields}}
+  {{fieldId}}: {{tsType}};
+{{/each}}
+}): Promise<{{OutputType}}> {
+  const systemPrompt = `You are an AI assistant for a manufacturing ERP system.
+Your role: {{agentType}} for {{touchpointName}}.
+
+{{systemPromptContext}}
+
+Always respond with valid JSON matching this structure:
+{
+{{#each outputFields}}
+  "{{fieldId}}": <{{tsType}}>,
+{{/each}}
+  "confidence": <number between 0 and 1>
+}`;
+
+  const userMessage = buildUserMessage(input);
+
+  const response = await anthropic.messages.create({
+    model: "{{modelId}}",
+    max_tokens: 1024,
+    messages: [{ role: "user", content: userMessage }],
+    system: systemPrompt,
+  });
+
+  const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+
+  let parsed: {{OutputType}};
+  try {
+    parsed = JSON.parse(text) as {{OutputType}};
+  } catch {
+    throw new Error(`{{touchpointName}}: model returned non-JSON response. Raw: ${text.slice(0, 200)}`);
+  }
+
+  {{#if confidenceThreshold}}
+  // Check confidence threshold — if below {{confidenceThreshold}}, apply fallback strategy
+  if ((parsed.confidence ?? 0) < {{confidenceThreshold}}) {
+    // Fallback: {{fallbackStrategy}}
+    {{#if humanInTheLoop}}
+    return { ...parsed, pending_review: true };
+    {{else}}
+    throw new Error(`{{touchpointName}}: confidence ${parsed.confidence} is below threshold {{confidenceThreshold}}. Manual review required.`);
+    {{/if}}
+  }
+  {{/if}}
+
+  {{#if humanInTheLoop}}
+  // Human-in-the-loop required: {{humanInTheLoopCondition}}
+  return { ...parsed, pending_review: true };
+  {{else}}
+  return parsed;
+  {{/if}}
+}
+
+/**
+ * Builds the user message from the input context.
+ * Includes all provided_to_agent fields as structured context.
+ */
+function buildUserMessage(input: Parameters<typeof {{functionName}}>[0]): string {
+  return [
+{{#each inputFields}}
+    `{{label}}: ${JSON.stringify(input.{{fieldId}})}`,
+{{/each}}
+  ].join("\n\n");
+}

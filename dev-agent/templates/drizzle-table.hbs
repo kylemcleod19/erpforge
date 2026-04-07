@@ -1,0 +1,32 @@
+/**
+ * {{entityName}} Drizzle Schema
+ * Implements spec section: data_entities.{{entityId}}
+ */
+
+import { pgTable, {{columnImports}} } from "drizzle-orm/pg-core";
+{{#if hasEnums}}
+import { pgEnum } from "drizzle-orm/pg-core";
+{{/if}}
+{{#each enumDefs}}
+export const {{name}}Enum = pgEnum("{{name}}", [{{values}}]);
+{{/each}}
+{{#each foreignImports}}
+import { {{tableName}} } from "./{{fileName}}.js";
+{{/each}}
+
+export const {{tableName}} = pgTable("{{tableNameSnake}}", {
+  id: uuid("id").defaultRandom().primaryKey(),
+{{#each columns}}
+  {{fieldId}}: {{columnDef}},
+{{/each}}
+{{#if softDelete}}
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+{{/if}}
+{{#if auditTrail}}
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+{{/if}}
+});
+
+export type {{TypeName}} = typeof {{tableName}}.$inferSelect;
+export type New{{TypeName}} = typeof {{tableName}}.$inferInsert;

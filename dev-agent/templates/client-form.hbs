@@ -1,0 +1,104 @@
+"use client";
+
+/**
+ * {{featureName}} — Create/Edit Form
+ * Implements spec section: {{specRefs}}
+ * Roles: {{roles}}
+ */
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  Form, FormField, FormItem, FormLabel, FormControl, FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+{{#if hasSelect}}
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+{{/if}}
+
+const formSchema = z.object({
+{{#each fields}}
+  {{fieldId}}: {{zodType}},
+{{/each}}
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+/**
+ * {{featureName}} form component.
+ * Submits to POST /api/v1/{{resource}} and redirects on success.
+ */
+export default function {{ComponentName}}Form() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+{{#each fields}}
+      {{fieldId}}: {{defaultValue}},
+{{/each}}
+    },
+  });
+
+  async function onSubmit(values: FormValues) {
+    setError(null);
+    const res = await fetch("/api/v1/{{resource}}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+
+    if (!res.ok) {
+      const data = await res.json() as { error?: string };
+      setError(data.error ?? "Something went wrong");
+      return;
+    }
+
+    router.push("/{{route}}");
+    router.refresh();
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
+{{#each fields}}
+        <FormField
+          control={form.control}
+          name="{{fieldId}}"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{{label}}</FormLabel>
+              <FormControl>
+                {{#if isEnum}}
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <SelectTrigger><SelectValue placeholder="Select {{label}}" /></SelectTrigger>
+                  <SelectContent>
+                    {{#each enumValues}}
+                    <SelectItem value="{{this}}">{{this}}</SelectItem>
+                    {{/each}}
+                  </SelectContent>
+                </Select>
+                {{else}}
+                <Input type="{{inputType}}" placeholder="{{label}}" {...field} />
+                {{/if}}
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+{{/each}}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Saving…" : "{{primaryAction}}"}
+        </Button>
+      </form>
+    </Form>
+  );
+}

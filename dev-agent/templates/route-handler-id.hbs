@@ -1,0 +1,85 @@
+/**
+ * {{entityName}} Route Handlers — Get One + Update + Delete
+ * Implements: {{specRefs}}
+ * Endpoints: GET /api/v1/{{resource}}/:id — PATCH /api/v1/{{resource}}/:id — DELETE /api/v1/{{resource}}/:id
+ */
+
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/api/handler";
+import { ok, apiError } from "@/lib/api/response";
+import { {{ServiceName}}Service } from "@/services/{{serviceFile}}";
+import { NotFoundError } from "@/lib/api/errors";
+import { z } from "zod";
+
+const updateSchema = z.object({
+{{#each updateFields}}
+  {{fieldId}}: {{zodType}},
+{{/each}}
+}).partial();
+
+type RouteContext = { params: Promise<{ id: string }> };
+
+/**
+ * GET /api/v1/{{resource}}/:id
+ * Retrieves a single {{entityName}} by ID.
+ *
+ * @param _request - Unused request object
+ * @param context - Route params containing the entity ID
+ * @returns The entity or 404
+ */
+export const GET = withAuth(async (_request: NextRequest, { session }, context: RouteContext) => {
+  const { id } = await context.params;
+  try {
+    const entity = await {{ServiceName}}Service.findById(id);
+    return ok(entity);
+  } catch (e) {
+    if (e instanceof NotFoundError) return apiError(404, e.message);
+    throw e;
+  }
+});
+
+/**
+ * PATCH /api/v1/{{resource}}/:id
+ * Partially updates a {{entityName}}.
+ *
+ * @param request - Request body with fields to update
+ * @param context - Route params containing the entity ID
+ * @returns The updated entity
+ * @throws 404 if not found, 422 if validation fails
+ */
+export const PATCH = withAuth(async (request: NextRequest, { session }, context: RouteContext) => {
+  const { id } = await context.params;
+  const body = await request.json() as unknown;
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(422, "Validation failed", parsed.error.flatten().fieldErrors);
+  }
+
+  try {
+    const entity = await {{ServiceName}}Service.update(id, parsed.data);
+    return ok(entity);
+  } catch (e) {
+    if (e instanceof NotFoundError) return apiError(404, e.message);
+    throw e;
+  }
+});
+
+/**
+ * DELETE /api/v1/{{resource}}/:id
+ * {{#if softDelete}}Soft-deletes{{else}}Permanently deletes{{/if}} a {{entityName}}.
+ *
+ * @param _request - Unused request object
+ * @param context - Route params containing the entity ID
+ * @returns Empty 204 response
+ * @throws 404 if not found
+ */
+export const DELETE = withAuth(async (_request: NextRequest, { session }, context: RouteContext) => {
+  const { id } = await context.params;
+  try {
+    await {{ServiceName}}Service.remove(id);
+    return new Response(null, { status: 204 });
+  } catch (e) {
+    if (e instanceof NotFoundError) return apiError(404, e.message);
+    throw e;
+  }
+});

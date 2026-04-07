@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "interview": "node dist/interviewer/cli.js",
-    "dev:interview": "ts-node interviewer/cli.ts"
+    "dev:interview": "ts-node --esm interviewer/cli.ts",
+    "dev-agent": "node dist/dev-agent/cli.js",
+    "dev:dev-agent": "ts-node --esm dev-agent/cli.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",

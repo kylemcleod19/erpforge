@@ -1,0 +1,45 @@
+/**
+ * {{featureName}} — Server Component Page
+ * Implements spec section: {{specRefs}}
+ * Roles: {{roles}}
+ */
+
+{{#each acceptanceCriteria}}
+{/* ✓ Spec {{featureId}}: {{this}} */}
+{{/each}}
+
+import { db } from "@/db";
+import { {{tableName}} } from "@/db/schema/{{schemaFile}}";
+{{#if softDelete}}import { isNull } from "drizzle-orm";{{/if}}
+import { RoleGuard } from "@/components/layout/role-guard";
+import { DataTable } from "@/components/tables/data-table";
+import { columns } from "./columns";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+
+/**
+ * {{featureName}} list page.
+ * Fetches {{entityName}} records directly via Drizzle (Server Component — no fetch() to own API).
+ */
+export default async function {{ComponentName}}Page() {
+  const rows = await db
+    .select()
+    .from({{tableName}})
+    {{#if softDelete}}.where(isNull({{tableName}}.deletedAt)){{/if}}
+    .orderBy({{tableName}}.{{orderField}})
+    .limit(50);
+
+  return (
+    <RoleGuard roles={[{{rolesArray}}]}>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold">{{featureName}}</h1>
+        {{#if primaryAction}}
+        <Button asChild>
+          <Link href="/{{route}}/new">{{primaryAction}}</Link>
+        </Button>
+        {{/if}}
+      </div>
+      <DataTable columns={columns} data={rows} />
+    </RoleGuard>
+  );
+}

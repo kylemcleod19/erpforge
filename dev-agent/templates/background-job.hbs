@@ -1,0 +1,55 @@
+/**
+ * {{jobName}} — Background Job
+ * Implements spec section: {{specRefs}}
+ * Schedule: {{schedule}}
+ * Trigger: {{trigger}}
+ */
+
+import cron from "node-cron";
+
+let isRunning = false;
+
+/**
+ * {{jobDescription}}
+ * Scheduled as: {{schedule}}
+ *
+ * Uses a running-guard to prevent overlapping executions if a job run
+ * takes longer than the schedule interval.
+ */
+export async function run{{JobName}}(): Promise<void> {
+  if (isRunning) {
+    console.log("[{{jobName}}] Skipping — previous run still in progress");
+    return;
+  }
+
+  isRunning = true;
+  const start = Date.now();
+
+  try {
+    console.log(`[{{jobName}}] Starting at ${new Date().toISOString()}`);
+
+    // TODO: Implement job logic
+    // {{jobDescription}}
+
+    const duration = Date.now() - start;
+    console.log(`[{{jobName}}] Completed in ${duration}ms`);
+  } catch (error) {
+    console.error(`[{{jobName}}] Failed:`, error);
+    // Error is logged — job will retry on next schedule tick
+  } finally {
+    isRunning = false;
+  }
+}
+
+/**
+ * Registers the {{jobName}} cron job.
+ * Call this from lib/jobs/scheduler.ts on server startup.
+ *
+ * @returns The cron task (call .stop() to cancel)
+ */
+export function register{{JobName}}Job(): cron.ScheduledTask {
+  return cron.schedule("{{cronExpression}}", () => {
+    // Fire and forget — errors are caught inside run{{JobName}}
+    void run{{JobName}}();
+  });
+}

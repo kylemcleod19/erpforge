@@ -1,0 +1,64 @@
+/**
+ * {{integrationName}} API Client
+ * Implements spec section: {{integrationId}}
+ * Auth: {{authMethod}}
+ * Error strategy: {{errorStrategy}}
+ */
+
+export class {{ClassName}}Client {
+  private readonly baseUrl = "{{baseUrl}}";
+  private readonly accessToken: string;
+
+  /**
+   * Creates a new {{integrationName}} client.
+   * The caller is responsible for loading and refreshing the access token
+   * from the oauth_tokens table via lib/integrations/{{slug}}/oauth.ts.
+   *
+   * @param accessToken - Valid OAuth access token for {{integrationName}}
+   */
+  constructor(accessToken: string) {
+    this.accessToken = accessToken;
+  }
+
+{{#each endpoints}}
+  /**
+   * {{description}}
+   * Triggered by: {{trigger}}
+   *
+   * @param {{#if hasPayload}}payload - Request body{{else}}id - Resource ID{{/if}}
+   * @returns API response
+   * @throws Error if the request fails (error strategy: {{../errorStrategy}})
+   */
+  async {{methodName}}({{#if hasPayload}}payload: {{PayloadType}}{{else}}id: string{{/if}}): Promise<{{ReturnType}}> {
+    return this.request<{{ReturnType}}>("{{method}}", `{{path}}`{{#if hasPayload}}, payload{{/if}});
+  }
+
+{{/each}}
+
+  /**
+   * Internal fetch wrapper applying auth header and error strategy.
+   * Error strategy: {{errorStrategy}}
+   */
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const res = await fetch(url, {
+      method,
+      headers: {
+        "Authorization": `Bearer ${this.accessToken}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!res.ok) {
+      {{#if isRetryBackoff}}
+      // Retry with backoff is handled by the caller (sync.ts)
+      {{/if}}
+      const errorText = await res.text();
+      throw new Error(`{{integrationName}} API error ${res.status}: ${errorText.slice(0, 200)}`);
+    }
+
+    return res.json() as Promise<T>;
+  }
+}

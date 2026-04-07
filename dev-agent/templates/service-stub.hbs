@@ -1,0 +1,132 @@
+/**
+ * {{entityName}} Service
+ * Implements spec section: {{specRefs}}
+ * Business logic layer — Route Handlers call this, never Drizzle directly.
+ */
+
+import { db } from "@/db";
+import { {{tableName}} } from "@/db/schema/{{schemaFile}}";
+import { eq{{#if softDelete}}, isNull{{/if}} } from "drizzle-orm";
+import type { {{TypeName}}, New{{TypeName}} } from "@/db/schema/{{schemaFile}}";
+import { decodeCursor, encodeCursor } from "@/lib/api/pagination";
+import { NotFoundError } from "@/lib/api/errors";
+
+const PAGE_SIZE = 50;
+
+export interface ListOptions {
+  cursor?: string;
+  search?: string;
+}
+
+export interface ListResult {
+  items: {{TypeName}}[];
+  nextCursor: string | null;
+}
+
+export const {{ServiceName}}Service = {
+  /**
+   * Returns a cursor-paginated list of {{entityName}} records.
+   * Cursor is based on the entity's created_at timestamp.
+   *
+   * @param opts - Pagination and search options
+   * @returns Paginated result with nextCursor
+   */
+  async list(opts: ListOptions = {}): Promise<ListResult> {
+    const { cursor, search: _search } = opts;
+    const after = cursor ? decodeCursor(cursor) : null;
+
+    const rows = await db
+      .select()
+      .from({{tableName}})
+      {{#if softDelete}}.where(isNull({{tableName}}.deletedAt)){{/if}}
+      // TODO: add search filter if search param provided
+      // TODO: add cursor filter: .where(gt({{tableName}}.createdAt, after))
+      .orderBy({{tableName}}.{{orderField}})
+      .limit(PAGE_SIZE + 1);
+
+    const hasMore = rows.length > PAGE_SIZE;
+    const items = rows.slice(0, PAGE_SIZE);
+    const nextCursor = hasMore ? encodeCursor(items[items.length - 1].{{orderField}}) : null;
+
+    return { items, nextCursor };
+  },
+
+  /**
+   * Retrieves a single {{entityName}} by primary key.
+   *
+   * @param id - UUID of the entity
+   * @returns The entity
+   * @throws NotFoundError if not found{{#if softDelete}} or soft-deleted{{/if}}
+   */
+  async findById(id: string): Promise<{{TypeName}}> {
+    const [row] = await db
+      .select()
+      .from({{tableName}})
+      .where(eq({{tableName}}.id, id))
+      {{#if softDelete}}.where(isNull({{tableName}}.deletedAt)){{/if}}
+      .limit(1);
+
+    if (!row) throw new NotFoundError("{{entityName}} not found");
+    return row;
+  },
+
+  /**
+   * Creates a new {{entityName}}.
+   *
+   * @param data - Fields for the new record
+   * @returns The created entity
+   */
+  async create(data: Omit<New{{TypeName}}, "id"{{#if auditTrail}} | "createdAt" | "updatedAt"{{/if}}>): Promise<{{TypeName}}> {
+    const [row] = await db
+      .insert({{tableName}})
+      .values(data)
+      .returning();
+    return row;
+  },
+
+  /**
+   * Partially updates a {{entityName}}.
+   *
+   * @param id - UUID of the entity to update
+   * @param data - Fields to update (partial)
+   * @returns The updated entity
+   * @throws NotFoundError if not found
+   */
+  async update(id: string, data: Partial<New{{TypeName}}>): Promise<{{TypeName}}> {
+    const [row] = await db
+      .update({{tableName}})
+      .set({
+        ...data,
+        {{#if auditTrail}}updatedAt: new Date(),{{/if}}
+      })
+      .where(eq({{tableName}}.id, id))
+      .returning();
+
+    if (!row) throw new NotFoundError("{{entityName}} not found");
+    return row;
+  },
+
+  /**
+   * {{#if softDelete}}Soft-deletes{{else}}Permanently removes{{/if}} a {{entityName}}.
+   * {{#if softDelete}}Sets deletedAt to now — record is retained for audit purposes.{{/if}}
+   *
+   * @param id - UUID of the entity to remove
+   * @throws NotFoundError if not found
+   */
+  async remove(id: string): Promise<void> {
+    {{#if softDelete}}
+    const [row] = await db
+      .update({{tableName}})
+      .set({ deletedAt: new Date() })
+      .where(eq({{tableName}}.id, id))
+      .returning({ id: {{tableName}}.id });
+    if (!row) throw new NotFoundError("{{entityName}} not found");
+    {{else}}
+    const [row] = await db
+      .delete({{tableName}})
+      .where(eq({{tableName}}.id, id))
+      .returning({ id: {{tableName}}.id });
+    if (!row) throw new NotFoundError("{{entityName}} not found");
+    {{/if}}
+  },
+};

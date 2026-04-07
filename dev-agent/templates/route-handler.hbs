@@ -1,0 +1,53 @@
+/**
+ * {{entityName}} Route Handlers — List + Create
+ * Implements: {{specRefs}}
+ * Endpoints: GET /api/v1/{{resource}} — POST /api/v1/{{resource}}
+ */
+
+import { NextRequest } from "next/server";
+import { withAuth } from "@/lib/api/handler";
+import { ok, created, apiError } from "@/lib/api/response";
+import { encodeCursor, decodeCursor } from "@/lib/api/pagination";
+import { {{ServiceName}}Service } from "@/services/{{serviceFile}}";
+import { z } from "zod";
+
+const createSchema = z.object({
+{{#each createFields}}
+  {{fieldId}}: {{zodType}},
+{{/each}}
+});
+
+/**
+ * GET /api/v1/{{resource}}
+ * Returns a cursor-paginated list of {{entityName}} records.
+ *
+ * @param request - Next.js request with optional ?cursor= and ?search= params
+ * @returns Paginated list with nextCursor
+ */
+export const GET = withAuth(async (request: NextRequest, { session }) => {
+  const { searchParams } = request.nextUrl;
+  const cursor = searchParams.get("cursor") ?? undefined;
+  const search = searchParams.get("search") ?? undefined;
+
+  const result = await {{ServiceName}}Service.list({ cursor, search });
+  return ok(result);
+});
+
+/**
+ * POST /api/v1/{{resource}}
+ * Creates a new {{entityName}}.
+ *
+ * @param request - Request body matching createSchema
+ * @returns The created entity
+ * @throws 422 if validation fails
+ */
+export const POST = withAuth(async (request: NextRequest, { session }) => {
+  const body = await request.json() as unknown;
+  const parsed = createSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(422, "Validation failed", parsed.error.flatten().fieldErrors);
+  }
+
+  const entity = await {{ServiceName}}Service.create(parsed.data);
+  return created(entity);
+});
