@@ -2,15 +2,24 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Produces a standalone build suitable for Railway deployment.
-  // The output at .next/standalone/server.js is a self-contained Node.js server.
   output: "standalone",
 
   // These packages use Node.js-only APIs and must not be bundled by webpack.
-  serverExternalPackages: ["postgres", "pino", "pino-pretty"],
+  serverExternalPackages: ["postgres", "pino"],
 
   eslint: {
-    // Lint is run separately in CI; don't block builds on lint errors.
     ignoreDuringBuilds: true,
+  },
+
+  webpack(config) {
+    // The interviewer/ and dev-agent/ packages use the TypeScript convention of
+    // writing imports with .js extensions (e.g. `from "./session.js"`), which is
+    // correct for ESM TypeScript but requires webpack to resolve .js → .ts.
+    config.resolve.extensionAlias = {
+      ".js": [".ts", ".tsx", ".js"],
+      ".jsx": [".tsx", ".jsx"],
+    };
+    return config;
   },
 };
 

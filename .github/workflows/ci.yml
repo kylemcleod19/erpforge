@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+jobs:
+  ci:
+    name: Typecheck · Validate · Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Install all workspace dependencies from the root lock file.
+      - name: Install dependencies
+        run: npm ci
+
+      # Typecheck the CLI packages (interviewer + dev-agent).
+      - name: Typecheck platform (interviewer + dev-agent)
+        run: npx tsc --noEmit
+
+      # Typecheck the web package (also checks imports into interviewer/ + dev-agent/).
+      - name: Typecheck web
+        run: npm run typecheck --workspace=web
+
+      # Validate spec.example.json against spec.schema.json.
+      # Catches accidental schema drift before it reaches production.
+      - name: Validate spec schema
+        run: npm run validate-schema
+
+      # Run tests — passWithNoTests so CI doesn't fail while the suite is being built.
+      - name: Test
+        run: npm test

@@ -1,0 +1,77 @@
+name: Spec Schema Changed
+
+# Fires when spec.schema.json is updated on main.
+# Creates a GitHub issue as a permanent record of the change.
+# This is your spec changelog tracker — every schema version bump is logged here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - schemas/spec.schema.json
+
+jobs:
+  notify:
+    name: Log spec schema change
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Extract the new schema_version from the updated schema file.
+      - name: Get schema version
+        id: schema
+        run: |
+          VERSION=$(node -e "
+            const s = require('./schemas/spec.schema.json');
+            // schema_version is inside the properties definition
+            const props = s.properties || {};
+            // The actual version value lives in the example or at the root of required metadata.
+            // Read from spec.example.json which always matches the current schema.
+            const ex = require('./schemas/spec.example.json');
+            console.log(ex.schema_version);
+          ")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Read the changelog entry for this version (if it exists).
+      - name: Get changelog entry
+        id: changelog
+        run: |
+          # Extract the section for this version from schemas/changelog.md
+          VERSION="${{ steps.schema.outputs.version }}"
+          ENTRY=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## /{exit} found{print}" \
+            schemas/changelog.md 2>/dev/null || echo "No changelog entry found for $VERSION.")
+          # Multiline output needs special escaping in GitHub Actions
+          echo "entry<<ENDOFENTRY" >> "$GITHUB_OUTPUT"
+          echo "$ENTRY" >> "$GITHUB_OUTPUT"
+          echo "ENDOFENTRY" >> "$GITHUB_OUTPUT"
+
+      - name: Create spec change issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.schema.outputs.version }}';
+            const changelog = `${{ steps.changelog.outputs.entry }}`;
+            const sha = context.sha.slice(0, 7);
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Spec schema updated → v${version}`,
+              labels: ['spec-change'],
+              body: [
+                `## spec.schema.json updated to v${version}`,
+                '',
+                `**Commit:** \`${sha}\` on \`main\``,
+                `**By:** ${context.actor}`,
+                '',
+                '### Changelog entry',
+                changelog || '_No changelog entry found. Add one to `schemas/changelog.md`._',
+                '',
+                '### Impact checklist',
+                '- [ ] `interviewer/phases/compiler.ts` still produces valid output',
+                '- [ ] `dev-agent/spec-manager.ts` `loadSpec()` still validates correctly',
+                '- [ ] `spec.example.json` updated to be valid against the new schema',
+                '- [ ] Any existing customer `spec.json` files are still valid or have been migrated',
+              ].join('\n'),
+            });

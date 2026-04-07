@@ -32,7 +32,7 @@ export async function runMigrations(): Promise<void> {
   log.info({ migrationsFolder }, "Running database migrations");
 
   try {
-    const { db } = await import("./index.js");
+    const { db } = await import("./index");
     await migrate(db, { migrationsFolder });
     log.info("Migrations complete");
   } catch (err) {

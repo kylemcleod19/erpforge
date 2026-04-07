@@ -10,7 +10,22 @@
       "Bash(taskkill /F /IM node.exe)",
       "Bash(npx next:*)",
       "Bash(curl -s http://localhost:3002/api/health)",
-      "Bash(kill %1)"
+      "Bash(kill %1)",
+      "Bash(sed -n '195,205p' C:/src/erpforge/interviewer/phases/module-runner.ts)",
+      "Bash(sed -n '113,125p' C:/src/erpforge/interviewer/phases/researcher.ts)",
+      "Bash(curl -s http://localhost:3003/api/health)",
+      "Bash(curl -s http://localhost:3003/api/interviews/test-co)",
+      "Bash(curl -s -X POST http://localhost:3003/api/interviews -H \"Content-Type: application/json\" -d \"{\\\\\"slug\\\\\":\\\\\"INVALID SLUG\\\\\"}\")",
+      "Bash(taskkill /F /IM node.exe /T)",
+      "Bash(taskkill /F /IM next.exe /T)",
+      "Bash(curl -s http://localhost:3004/api/health)",
+      "Bash(curl -s http://localhost:3004/api/interviews/test-co)",
+      "Bash(curl -s -X POST http://localhost:3004/api/interviews -H \"Content-Type: application/json\" -d \"{\\\\\"slug\\\\\":\\\\\"INVALID SLUG\\\\\"}\")",
+      "Bash(curl -s http://localhost:3004/api/builds/test-co)",
+      "Bash(curl -s -X POST http://localhost:3004/api/builds -H 'Content-Type: application/json' -d '{\"slug\":\"test-co\"}')",
+      "Bash(curl -s -X POST http://localhost:3004/api/builds -H 'Content-Type: application/json' -d '{\"slug\":\"TEST CO\"}')",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

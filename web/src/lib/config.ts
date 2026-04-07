@@ -22,9 +22,11 @@ function optionalEnv(name: string, defaultValue = ""): string {
 const isProduction = process.env.NODE_ENV === "production";
 
 // Path to the customers/ directory.
-// - Production (Railway): set CUSTOMERS_DIR=/app/customers pointing at the mounted volume.
-// - Development: defaults to the repo root's customers/ directory (one level up from web/).
-const defaultCustomersDir = path.resolve(process.cwd(), "..", "customers");
+// Must match what interviewer/session.ts computes (path.join(process.cwd(), "customers")).
+// - Development (npm run dev from web/): defaults to web/customers/
+// - Production (Railway Root Directory = web/): set CUSTOMERS_DIR to the volume mount path
+//   e.g. CUSTOMERS_DIR=/app/web/customers if Railway clones to /app and Root Dir = web/
+const defaultCustomersDir = path.resolve(process.cwd(), "customers");
 
 export const config = {
   nodeEnv: optionalEnv("NODE_ENV", "development"),
