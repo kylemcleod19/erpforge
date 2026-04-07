@@ -1,0 +1,53 @@
+/**
+ * Environment variable validation and typed config.
+ * Throws at startup if required variables are missing so Railway fails fast
+ * rather than silently breaking at runtime.
+ */
+import path from "path";
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+function optionalEnv(name: string, defaultValue = ""): string {
+  return process.env[name] ?? defaultValue;
+}
+
+// In production all required vars must be present.
+// In development the app starts without them so engineers can iterate quickly.
+const isProduction = process.env.NODE_ENV === "production";
+
+// Path to the customers/ directory.
+// - Production (Railway): set CUSTOMERS_DIR=/app/customers pointing at the mounted volume.
+// - Development: defaults to the repo root's customers/ directory (one level up from web/).
+const defaultCustomersDir = path.resolve(process.cwd(), "..", "customers");
+
+export const config = {
+  nodeEnv: optionalEnv("NODE_ENV", "development"),
+  isProduction,
+
+  databaseUrl: isProduction
+    ? requireEnv("DATABASE_URL")
+    : optionalEnv("DATABASE_URL"),
+
+  anthropicApiKey: isProduction
+    ? requireEnv("ANTHROPIC_API_KEY")
+    : optionalEnv("ANTHROPIC_API_KEY"),
+
+  betterAuthSecret: isProduction
+    ? requireEnv("BETTER_AUTH_SECRET")
+    : optionalEnv("BETTER_AUTH_SECRET", "dev-secret-change-in-production"),
+
+  appUrl: optionalEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+
+  logLevel: optionalEnv("LOG_LEVEL", isProduction ? "info" : "debug"),
+
+  slackWebhookUrl: optionalEnv("SLACK_WEBHOOK_URL"),
+
+  // Set CUSTOMERS_DIR=/app/customers in the Railway environment variable panel.
+  customersDir: optionalEnv("CUSTOMERS_DIR", defaultCustomersDir),
+} as const;

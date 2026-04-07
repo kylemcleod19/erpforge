@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Build outputs
+dist/
+web/.next/
+web/out/
+
+# Customer data (generated at runtime — lives on Railway volume)
+customers/*
+!customers/.gitkeep
+
+# Environment variables
+.env
+.env.local
+.env*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Editor
+.vscode/
+.idea/
+
+# Railway
+.railway/

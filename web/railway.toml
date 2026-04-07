@@ -1,0 +1,11 @@
+[build]
+  builder = "nixpacks"
+
+[deploy]
+  # Migrations run automatically via src/instrumentation.ts before any requests
+  # are served. If migrations fail, /api/health returns 500 and Railway rolls back.
+  startCommand = "node .next/standalone/server.js"
+  healthcheckPath = "/api/health"
+  healthcheckTimeout = 300
+  restartPolicyType = "on_failure"
+  restartPolicyMaxRetries = 3

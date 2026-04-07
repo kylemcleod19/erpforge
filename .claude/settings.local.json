@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(du -sh /c/src/erpforge/*)",
+      "Bash(git:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(npx next:*)",
+      "Bash(curl -s http://localhost:3002/api/health)",
+      "Bash(kill %1)"
     ]
   }
 }

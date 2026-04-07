@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "description": "ERP Forge — custom ERP generator for small manufacturers",
   "main": "dist/interviewer/cli.js",
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build --workspace=web",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspace=web",
     "interview": "node dist/interviewer/cli.js",
-    "dev:interview": "ts-node --esm interviewer/cli.ts",
-    "dev-agent": "node dist/dev-agent/cli.js",
-    "dev:dev-agent": "ts-node --esm dev-agent/cli.ts"
+    "dev:interview": "npx tsx interviewer/cli.ts",
+    "dev:dev-agent": "npx tsx dev-agent/cli.ts",
+    "dev:web": "npm run dev --workspace=web",
+    "validate-schema": "npx tsx scripts/validate-schema.ts",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
@@ -19,7 +25,8 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/uuid": "^10.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.7.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.0.0"
   }
 }
