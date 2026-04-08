@@ -9,9 +9,6 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Compile TypeScript (interviewer + dev-agent packages)
-RUN npx tsc
-
 # Build Next.js (standalone output)
 RUN npm run build --workspace=web
 
@@ -27,11 +24,8 @@ ENV PORT=3000
 # Copy its contents directly so server.js lands at /app/server.js.
 COPY --from=builder /app/web/.next/standalone ./
 
-# Explicitly copy the standalone node_modules so all dependencies are present.
-COPY --from=builder /app/web/.next/standalone/node_modules ./node_modules
-
-# Static assets must be served from the path the standalone server expects.
-COPY --from=builder /app/web/.next/static ./.next/static
+# Static assets must be copied alongside the standalone server.
+COPY --from=builder /app/web/.next/static ./web/.next/static
 
 EXPOSE 3000
 CMD ["node", "server.js"]
