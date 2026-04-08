@@ -10,6 +10,7 @@ RUN npm ci
 COPY . .
 
 # Build Next.js (standalone output)
+# Cache buster: 2026-04-08T19:40:00Z
 RUN npm run build --workspace=web
 
 # ---- Deploy image ----
