@@ -27,7 +27,10 @@ ENV PORT=3000
 # Copy its contents directly so server.js lands at /app/server.js.
 COPY --from=builder /app/web/.next/standalone ./
 
-# Static assets must be copied alongside the standalone server.
+# Explicitly copy the standalone node_modules so all dependencies are present.
+COPY --from=builder /app/web/.next/standalone/node_modules ./node_modules
+
+# Static assets must be served from the path the standalone server expects.
 COPY --from=builder /app/web/.next/static ./.next/static
 
 EXPOSE 3000
