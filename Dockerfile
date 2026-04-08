@@ -29,5 +29,9 @@ COPY --from=builder /app/web/.next/standalone ./
 # Static assets must be copied alongside the standalone server.
 COPY --from=builder /app/web/.next/static ./web/.next/static
 
+# Drizzle migration files — the migration runner resolves path.resolve(cwd(), "drizzle").
+# cwd is /app (where Railway launches `node web/server.js`), so these land at /app/drizzle/.
+COPY --from=builder /app/web/drizzle ./drizzle
+
 EXPOSE 3000
 CMD ["node", "server.js"]
