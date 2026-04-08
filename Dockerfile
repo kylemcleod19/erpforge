@@ -22,10 +22,13 @@ ENV PORT=3000
 
 # Standalone output is self-contained (includes its own node_modules).
 # Copy its contents directly so server.js lands at /app/server.js.
+# Next.js mirrors the monorepo path structure inside standalone, so the
+# app's built chunks live under web/.next/server/ within this directory.
 COPY --from=builder /app/web/.next/standalone ./
 
-# Static assets must be copied alongside the standalone server.
-COPY --from=builder /app/web/.next/static ./.next/static
+# Static assets must be placed at the path server.js expects: web/.next/static
+# (mirroring the monorepo layout where the web workspace is at /app/web).
+COPY --from=builder /app/web/.next/static ./web/.next/static
 
 EXPOSE 3000
 CMD ["node", "server.js"]
