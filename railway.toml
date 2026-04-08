@@ -1,5 +1,5 @@
 [deploy]
-  startCommand = "HOSTNAME=0.0.0.0 node web/.next/standalone/server.js"
+  startCommand = "HOSTNAME=0.0.0.0 node web/server-standalone/server.js"
   healthcheckPath = "/api/health"
   healthcheckTimeout = 300
   restartPolicyType = "on_failure"

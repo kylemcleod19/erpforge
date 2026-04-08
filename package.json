@@ -7,7 +7,7 @@
     "web"
   ],
   "scripts": {
-    "build": "npm run build --workspace=web",
+    "build": "npm run build --workspace=web && cp -r web/.next/standalone web/server-standalone && cp -r web/.next/static web/server-standalone/.next/static",
     "build:cli": "tsc",
     "typecheck": "tsc --noEmit && npm run typecheck --workspace=web",
     "interview": "node dist/interviewer/cli.js",
