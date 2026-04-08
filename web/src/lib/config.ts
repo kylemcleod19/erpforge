@@ -19,7 +19,11 @@ function optionalEnv(name: string, defaultValue = ""): string {
 
 // In production all required vars must be present.
 // In development the app starts without them so engineers can iterate quickly.
-const isProduction = process.env.NODE_ENV === "production";
+// During `next build` Next.js sets NEXT_PHASE=phase-production-build and runs
+// route modules to collect page data — skip validation then so build containers
+// don't need DATABASE_URL present at build time.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+const isProduction = process.env.NODE_ENV === "production" && !isBuildPhase;
 
 // Path to the customers/ directory.
 // Must match what interviewer/session.ts computes (path.join(process.cwd(), "customers")).
