@@ -41,7 +41,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       # Poll the health endpoint until Railway finishes the deploy (up to 5 min).
-      # STAGING_URL is a repo variable (e.g. https://staging.erpforge.io).
+      # STAGING_URL is a repo variable (e.g. https://erpforge-staging.kyle-mcleod.io).
       - name: Wait for staging health check
         run: |
           echo "Waiting for staging deployment..."
