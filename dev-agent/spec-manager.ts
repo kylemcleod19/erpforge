@@ -10,7 +10,8 @@ import * as path from "path";
 import type { ErpSpec, SpecAmendment, VersionBumpType } from "./types.js";
 import { validateSpec } from "../interviewer/validate.js";
 
-const CUSTOMERS_DIR = path.join(process.cwd(), "customers");
+const CUSTOMERS_DIR =
+  process.env.CUSTOMERS_DIR ?? path.join(process.cwd(), "customers");
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 

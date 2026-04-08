@@ -3,7 +3,8 @@ import * as path from "path";
 import { v4 as uuidv4 } from "uuid";
 import type { InterviewSession } from "./types.js";
 
-const CUSTOMERS_DIR = path.join(process.cwd(), "customers");
+const CUSTOMERS_DIR =
+  process.env.CUSTOMERS_DIR ?? path.join(process.cwd(), "customers");
 
 export function sessionPath(customerSlug: string): string {
   return path.join(CUSTOMERS_DIR, customerSlug, "session.json");
