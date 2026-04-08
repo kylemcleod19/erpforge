@@ -10,7 +10,8 @@ RUN npm ci
 COPY . .
 
 # Build Next.js (standalone output)
-# Cache buster: 2026-04-08T19:40:00Z
+# Force cache invalidation so the build always runs on every push.
+RUN date > /tmp/build-timestamp.txt
 RUN npm run build --workspace=web
 
 # ---- Deploy image ----
