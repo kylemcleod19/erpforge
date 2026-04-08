@@ -84,9 +84,12 @@ jobs:
 
       # If SLACK_WEBHOOK_URL is set as a secret, also post to Slack.
       - name: Slack alert on production failure
-        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then exit 0; fi
+          curl -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d '{
               "text": "🚨 *ERP Forge — PRODUCTION deployment failed*\nBranch: `${{ github.ref_name }}`\nCommit: `${{ github.sha }}`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
