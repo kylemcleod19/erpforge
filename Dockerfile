@@ -9,9 +9,6 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Compile TypeScript (interviewer + dev-agent packages)
-RUN npx tsc
-
 # Build Next.js (standalone output)
 RUN npm run build --workspace=web
 
