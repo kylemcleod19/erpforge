@@ -7,7 +7,8 @@
     "web"
   ],
   "scripts": {
-    "build": "tsc && npm run build --workspace=web",
+    "build": "npm run build --workspace=web",
+    "build:cli": "tsc",
     "typecheck": "tsc --noEmit && npm run typecheck --workspace=web",
     "interview": "node dist/interviewer/cli.js",
     "dev:interview": "npx tsx interviewer/cli.ts",
