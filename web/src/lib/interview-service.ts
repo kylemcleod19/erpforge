@@ -296,6 +296,12 @@ export async function startSession(slug: string): Promise<TurnResult> {
   };
   workers.set(slug, worker);
 
+  // Capture the promise BEFORE starting the runner.
+  // runInterview synchronously chains into runIntake → onMessage, which nulls out
+  // worker.agentWaiting before control returns here. Capturing the promise reference
+  // first avoids reading .promise on null.
+  const openingMessagePromise = worker.agentWaiting!.promise;
+
   // Start the interview runner in the background. Clean up when done.
   worker.runPromise = runInterview(worker).finally(() => {
     workers.delete(slug);
@@ -303,11 +309,7 @@ export async function startSession(slug: string): Promise<TurnResult> {
   });
 
   // Wait for the agent to emit its first message (60s timeout).
-  const result = await withTimeout(
-    worker.agentWaiting!.promise,
-    60_000,
-    "agent opening message"
-  );
+  const result = await withTimeout(openingMessagePromise, 60_000, "agent opening message");
 
   log.info({ slug, phase: result.phase }, "interview.started");
   return result;
