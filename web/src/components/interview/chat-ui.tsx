@@ -31,7 +31,7 @@ export function ChatUI({ slug, taskTitle }: ChatUIProps) {
     setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }, []);
 
-  /** Start or resume the interview session — returns the opening message. */
+  /** Start or resume the interview session. Populates messages and returns the opening/last reply. */
   const startSession = useCallback(async (): Promise<string | null> => {
     const res = await fetch("/api/interviews", {
       method: "POST",
@@ -43,9 +43,19 @@ export function ChatUI({ slug, taskTitle }: ChatUIProps) {
       throw new Error(body?.error?.message ?? "Failed to start interview");
     }
     const json = await res.json();
-    const data = json.data as { reply: string; phase: InterviewPhase; done: boolean };
+    const data = json.data as {
+      reply: string;
+      phase: InterviewPhase;
+      done: boolean;
+      history?: Array<{ role: "user" | "assistant"; content: string }>;
+    };
     setPhase(data.phase);
     if (data.done) setDone(true);
+    // If resuming (history present), restore the full conversation
+    if (data.history && data.history.length > 0) {
+      setMessages(data.history.map((m) => ({ role: m.role, content: m.content })));
+      return null; // history already contains the last reply — no need to append again
+    }
     return data.reply;
   }, [slug]);
 
