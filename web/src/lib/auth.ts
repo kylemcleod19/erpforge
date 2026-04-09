@@ -15,6 +15,7 @@ import { config } from "./config";
 export const auth = betterAuth({
   secret: config.betterAuthSecret,
   baseURL: config.appUrl,
+  trustedOrigins: [config.appUrl],
 
   database: drizzleAdapter(db, { provider: "pg", schema }),
 
