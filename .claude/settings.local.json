@@ -26,7 +26,8 @@
       "Bash(curl -s -X POST http://localhost:3004/api/builds -H 'Content-Type: application/json' -d '{\"slug\":\"TEST CO\"}')",
       "Bash(npm run:*)",
       "Bash(npm test:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }

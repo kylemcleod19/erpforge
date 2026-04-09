@@ -20,11 +20,7 @@ export async function register() {
     //    better-auth manages its own tables separately from Drizzle.
     const { auth } = await import("./lib/auth");
     // getMigrations is not re-exported from better-auth/db index — import directly
-    const { getMigrations } = await import(
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore — internal path not in public types
-      "better-auth/dist/db/get-migration.mjs"
-    );
+    const { getMigrations } = await import("better-auth/db/migration");
     const { runMigrations: runAuthMigrations } = await getMigrations(auth.options);
     await runAuthMigrations();
   }
