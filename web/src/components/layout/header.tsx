@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -20,11 +19,9 @@ interface HeaderProps {
 }
 
 export function Header({ userName, userEmail, isDemo, demoExpiresAt }: HeaderProps) {
-  const router = useRouter();
-
   async function handleSignOut() {
     await authClient.signOut();
-    router.push("/");
+    window.location.href = "/login";
   }
 
   const initials = userName
