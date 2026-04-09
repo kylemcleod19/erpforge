@@ -12,16 +12,10 @@
 export async function register() {
   // Only run in the Node.js runtime, not in the Edge runtime or during build.
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    // 1. Apply Drizzle migrations (custom tables: tasks, uploads, etc.)
+    // Apply all Drizzle migrations — includes both custom tables (tasks, uploads, etc.)
+    // and better-auth tables (user, session, account, organization, etc.) via
+    // drizzle/0002_better_auth_tables.sql.
     const { runMigrations } = await import("./db/migrate");
     await runMigrations();
-
-    // 2. Apply better-auth migrations (user, session, account, organization, etc.)
-    //    better-auth manages its own tables separately from Drizzle.
-    const { auth } = await import("./lib/auth");
-    // getMigrations is not re-exported from better-auth/db index — import directly
-    const { getMigrations } = await import("better-auth/db/migration");
-    const { runMigrations: runAuthMigrations } = await getMigrations(auth.options);
-    await runAuthMigrations();
   }
 }
