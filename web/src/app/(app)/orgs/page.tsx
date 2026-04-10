@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
-import { Building2, Users, Clock } from "lucide-react";
+import { Building2, Users, Clock, Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { db } from "@/db/index";
 import { organization, member, orgMeta } from "@/db/schema/index";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DemoCleanupButton } from "@/components/orgs/demo-cleanup-button";
 
 export default async function OrgsPage() {
@@ -44,9 +45,15 @@ export default async function OrgsPage() {
             {orgs.filter((o) => o.isDemo).length} demo
           </p>
         </div>
-        {expiredCount > 0 && (
-          <DemoCleanupButton expiredCount={expiredCount} />
-        )}
+        <div className="flex items-center gap-2">
+          {expiredCount > 0 && <DemoCleanupButton expiredCount={expiredCount} />}
+          <Button asChild size="sm">
+            <Link href="/orgs/new">
+              <Plus className="h-4 w-4" />
+              New Org
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border divide-y">

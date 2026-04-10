@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
-import { db } from "@/db/index";
-import { tasks } from "@/db/schema/index";
+import { listTasks } from "@/lib/task-service";
+import { Button } from "@/components/ui/button";
 import { TaskList } from "@/components/tasks/task-list";
 
 export default async function TasksPage() {
@@ -10,21 +11,26 @@ export default async function TasksPage() {
   if (!session) redirect("/login");
 
   const user = session.user as typeof session.user & { role?: string };
+  const userRole = user.role ?? "client_user";
 
-  // For now: show tasks assigned to this user.
-  // Phase 2 will add full org-scoped visibility rules via task-service.ts.
-  const myTasks = await db
-    .select()
-    .from(tasks)
-    .where(eq(tasks.assignedToId, session.user.id))
-    .orderBy(tasks.createdAt);
+  const myTasks = await listTasks(session.user.id, userRole, {});
+
+  const canCreate = userRole === "platform_head" || userRole === "consultant";
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Tasks</h1>
+        {canCreate && (
+          <Button asChild size="sm">
+            <Link href="/tasks/new">
+              <Plus className="h-4 w-4" />
+              New Task
+            </Link>
+          </Button>
+        )}
       </div>
-      <TaskList tasks={myTasks} userRole={user.role} />
+      <TaskList tasks={myTasks} userRole={userRole} />
     </div>
   );
 }

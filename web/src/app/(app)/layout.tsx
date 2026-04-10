@@ -38,6 +38,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <Header
           userName={session.user.name}
           userEmail={session.user.email}
+          userRole={user.role}
           isDemo={isDemo}
           demoExpiresAt={demoExpiresAt}
         />

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Menu } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -9,16 +11,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { LogOut, User } from "lucide-react";
+import { NavLinks } from "./sidebar";
 
 interface HeaderProps {
   userName?: string;
   userEmail?: string;
+  userRole?: string;
   isDemo?: boolean;
   demoExpiresAt?: string;
 }
 
-export function Header({ userName, userEmail, isDemo, demoExpiresAt }: HeaderProps) {
+export function Header({ userName, userEmail, userRole, isDemo, demoExpiresAt }: HeaderProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   async function handleSignOut() {
     await authClient.signOut();
     window.location.href = "/login";
@@ -46,8 +58,19 @@ export function Header({ userName, userEmail, isDemo, demoExpiresAt }: HeaderPro
         </div>
       )}
       <header className="h-14 border-b flex items-center justify-between px-4">
-        <div className="md:hidden font-bold text-sm">ERP Forge</div>
-        <div className="flex-1" />
+        {/* Mobile hamburger */}
+        <button
+          className="md:hidden p-1.5 rounded-md hover:bg-muted transition-colors"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
+        {/* Desktop: spacer (sidebar handles branding) */}
+        <div className="hidden md:block flex-1" />
+        <div className="flex-1 md:hidden" />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring">
@@ -73,6 +96,18 @@ export function Header({ userName, userEmail, isDemo, demoExpiresAt }: HeaderPro
           </DropdownMenuContent>
         </DropdownMenu>
       </header>
+
+      {/* Mobile nav Sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-56 p-0">
+          <SheetHeader className="p-4 border-b">
+            <SheetTitle className="text-sm font-bold tracking-wide text-left">
+              ERP Forge
+            </SheetTitle>
+          </SheetHeader>
+          <NavLinks userRole={userRole} onNavigate={() => setMobileOpen(false)} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
