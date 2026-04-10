@@ -6,6 +6,7 @@
  */
 import { NextRequest } from "next/server";
 import { headers } from "next/headers";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import {
   createDemoOrg,
@@ -15,6 +16,10 @@ import {
 import { ok, apiError, serverError } from "@/lib/api";
 import { childLogger } from "@/lib/logger";
 import { getSession } from "@/lib/session";
+
+const createDemoSchema = z.object({
+  companyPrompt: z.string().min(10).max(2000),
+});
 
 const log = childLogger("api/demo");
 
@@ -26,8 +31,14 @@ export async function POST(req: NextRequest) {
     return apiError("Too many demo requests — please try again later.", 429);
   }
 
+  const body = await req.json().catch(() => ({}));
+  const parsed = createDemoSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError("companyPrompt is required (10–2000 characters)", 400);
+  }
+
   try {
-    const demo = await createDemoOrg();
+    const demo = await createDemoOrg(parsed.data.companyPrompt);
 
     // Auto-sign-in the demo user so they land on /tasks already authenticated
     const hdrs = await headers();
