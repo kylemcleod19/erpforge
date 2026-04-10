@@ -69,6 +69,8 @@ export interface TurnResult {
   phase: InterviewPhase;
   done: boolean;
   specPath?: string;
+  /** Populated on resume — full prior conversation so the UI can restore history. */
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 export interface SessionState {
@@ -149,8 +151,8 @@ function makeWebMessageHandler(
       done: false,
     });
 
-    // 3. Block the agent until the user sends a message (2-min timeout).
-    return withTimeout(userInputDeferred.promise, 120_000, "user input");
+    // 3. Block the agent until the user sends a message (10-min timeout).
+    return withTimeout(userInputDeferred.promise, 600_000, "user input");
   };
 }
 
@@ -249,12 +251,26 @@ async function runInterview(worker: SessionWorker): Promise<void> {
  * Starts the worker in the background and returns the agent's opening message.
  */
 export async function startSession(slug: string): Promise<TurnResult> {
-  // If a worker already exists and is still running, return an error.
+  // If a worker already exists (user navigated away and back), resume gracefully.
+  // The worker is still blocked on userInput — just return the prior conversation
+  // history so the UI can repopulate and the user can continue sending messages.
   const existing = workers.get(slug);
   if (existing) {
-    throw new Error(
-      `Session ${slug} already has an active worker. Use POST /messages to continue.`
-    );
+    const existingSession = loadSession(slug);
+    const history = (existingSession?.messages ?? []).flatMap((m) => {
+      const content = typeof m.content === "string" ? m.content : m.content
+        .filter((b): b is { type: "text"; text: string } => b.type === "text")
+        .map((b) => b.text)
+        .join("\n");
+      return content ? [{ role: m.role as "user" | "assistant", content }] : [];
+    });
+    const lastAssistant = [...history].reverse().find((m) => m.role === "assistant");
+    return {
+      reply: lastAssistant?.content ?? "Welcome back — please continue.",
+      phase: existing.session.current_phase,
+      done: existing.session.current_phase === "complete",
+      history,
+    };
   }
 
   ensureCustomerDir(slug);
@@ -280,6 +296,12 @@ export async function startSession(slug: string): Promise<TurnResult> {
   };
   workers.set(slug, worker);
 
+  // Capture the promise BEFORE starting the runner.
+  // runInterview synchronously chains into runIntake → onMessage, which nulls out
+  // worker.agentWaiting before control returns here. Capturing the promise reference
+  // first avoids reading .promise on null.
+  const openingMessagePromise = worker.agentWaiting!.promise;
+
   // Start the interview runner in the background. Clean up when done.
   worker.runPromise = runInterview(worker).finally(() => {
     workers.delete(slug);
@@ -287,11 +309,7 @@ export async function startSession(slug: string): Promise<TurnResult> {
   });
 
   // Wait for the agent to emit its first message (60s timeout).
-  const result = await withTimeout(
-    worker.agentWaiting!.promise,
-    60_000,
-    "agent opening message"
-  );
+  const result = await withTimeout(openingMessagePromise, 60_000, "agent opening message");
 
   log.info({ slug, phase: result.phase }, "interview.started");
   return result;

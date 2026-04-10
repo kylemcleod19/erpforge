@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   // These packages use Node.js-only APIs and must not be bundled by webpack.
-  serverExternalPackages: ["postgres", "pino"],
+  serverExternalPackages: ["postgres", "pino", "better-auth"],
 
   eslint: {
     ignoreDuringBuilds: true,

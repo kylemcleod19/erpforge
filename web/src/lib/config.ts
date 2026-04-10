@@ -56,4 +56,13 @@ export const config = {
 
   // Set CUSTOMERS_DIR=/app/customers in the Railway environment variable panel.
   customersDir: optionalEnv("CUSTOMERS_DIR", defaultCustomersDir),
+
+  // Directory for uploaded files (transcripts, documents). Same volume as customers/.
+  uploadsDir: optionalEnv("UPLOADS_DIR", path.resolve(process.cwd(), "uploads")),
+
+  // Max upload size in bytes — default 50 MB
+  maxUploadBytes: parseInt(
+    optionalEnv("MAX_UPLOAD_BYTES", String(50 * 1024 * 1024)),
+    10
+  ),
 } as const;
