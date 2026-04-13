@@ -68,6 +68,18 @@ export default async function TaskDetailPage({
         {task.description && (
           <p className="text-muted-foreground text-sm leading-relaxed">{task.description}</p>
         )}
+        {task.questions && task.questions.length > 0 && (
+          <ol className="mt-3 space-y-2 list-none">
+            {task.questions.map((q, i) => (
+              <li key={i} className="flex gap-3 text-sm">
+                <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center mt-0.5">
+                  {i + 1}
+                </span>
+                <span className="leading-relaxed">{q}</span>
+              </li>
+            ))}
+          </ol>
+        )}
         {task.dueAt && (
           <p className="text-xs text-muted-foreground">
             Due {new Date(task.dueAt).toLocaleDateString()}

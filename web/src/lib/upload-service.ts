@@ -159,8 +159,9 @@ export async function processUpload(uploadId: string): Promise<void> {
     if (extracted.followUpNeeded && task) {
       await db.insert(tasks).values({
         orgId: upload.orgId,
-        title: `Follow-up interview: ${task.title}`,
-        description: `Automatically created after reviewing uploaded ${uploadTypeLabel}. Open questions:\n\n${extracted.openQuestions.map((q) => `• ${q}`).join("\n")}`,
+        title: `Follow-up: ${task.title}`,
+        description: `Questions raised by the uploaded ${uploadTypeLabel}.`,
+        questions: extracted.openQuestions,
         actionType: "interview",
         status: "open",
         assignedToId: task.assignedToId,

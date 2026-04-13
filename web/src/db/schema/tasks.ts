@@ -12,6 +12,7 @@ import {
   text,
   timestamp,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const taskStatusEnum = pgEnum("task_status", [
@@ -39,6 +40,9 @@ export const tasks = pgTable(
 
     title: varchar("title", { length: 255 }).notNull(),
     description: text("description"),
+
+    // Structured questions to answer — rendered as a numbered list, not embedded in description
+    questions: jsonb("questions").$type<string[]>(),
 
     // Consultant-visible context notes — not shown to client users
     contextNotes: text("context_notes"),
