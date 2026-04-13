@@ -15,9 +15,15 @@ interface ChatUIProps {
   slug: string;
   /** Display name shown above the chat */
   taskTitle: string;
+  /**
+   * Optional seed message sent automatically as the user's first reply.
+   * Used by the demo flow to inject the visitor's company description.
+   * Only sent on fresh sessions — not on resume.
+   */
+  initialPrompt?: string;
 }
 
-export function ChatUI({ slug, taskTitle }: ChatUIProps) {
+export function ChatUI({ slug, taskTitle, initialPrompt }: ChatUIProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [phase, setPhase] = useState<InterviewPhase>("intake");
   const [input, setInput] = useState("");
@@ -91,24 +97,42 @@ export function ChatUI({ slug, taskTitle }: ChatUIProps) {
     [slug, startSession]
   );
 
-  // On mount: start the session and display the opening message
+  // On mount: start the session, display the opening message, and optionally
+  // auto-send initialPrompt as the user's first message (demo flow only).
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    setLoading(true);
-    startSession()
-      .then((reply) => {
+    async function init() {
+      setLoading(true);
+      try {
+        const reply = await startSession();
         if (reply) {
+          // Fresh session — show AI opening message
           setMessages([{ role: "assistant", content: reply }]);
           scrollToBottom();
+
+          // Auto-send the seed prompt so the AI can skip questions already answered
+          if (initialPrompt) {
+            setMessages((prev) => [...prev, { role: "user", content: initialPrompt }]);
+            scrollToBottom();
+            const result = await sendTurn(initialPrompt);
+            setMessages((prev) => [...prev, { role: "assistant", content: result.reply }]);
+            setPhase(result.phase);
+            if (result.done) setDone(true);
+            scrollToBottom();
+          }
         }
-      })
-      .catch((err) => {
+        // reply === null means resumed session — history already restored, no auto-send
+      } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to start interview");
-      })
-      .finally(() => setLoading(false));
-  }, [startSession, scrollToBottom]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    init();
+  }, [startSession, scrollToBottom, initialPrompt, sendTurn]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();

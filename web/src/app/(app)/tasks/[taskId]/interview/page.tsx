@@ -41,7 +41,11 @@ export default async function InterviewPage({
       {/* Chat fills remaining space */}
       <div className="flex-1 min-h-0 px-6 py-4">
         <div className="max-w-2xl mx-auto h-full">
-          <ChatUI slug={interviewSlug} taskTitle={task.title} />
+          <ChatUI
+            slug={interviewSlug}
+            taskTitle={task.title}
+            initialPrompt={task.contextNotes ?? undefined}
+          />
         </div>
       </div>
     </div>

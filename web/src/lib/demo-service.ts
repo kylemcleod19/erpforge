@@ -4,7 +4,7 @@
  * Each call to createDemoOrg():
  *  1. Creates a better-auth user (temporary credentials)
  *  2. Creates a better-auth organization (demo-{uuid})
- *  3. Seeds demo tasks covering each action type
+ *  3. Seeds a single interview task using the visitor's company prompt
  *  4. Records org metadata with a 24-hour expiry
  *
  * Cleanup: DELETE /api/demo/cleanup deletes task/meta rows for orgs where demoExpiresAt < now().
@@ -33,43 +33,6 @@ export function checkDemoRateLimit(ip: string): boolean {
   return true;
 }
 
-const DEMO_TASKS = [
-  {
-    title: "Clarify your BOM process",
-    description:
-      "Walk through your bill of materials structure with an AI interviewer. We'll cover how you manage multi-level BOMs, revision cycles, and product variants.",
-    actionType: "interview" as const,
-  },
-  {
-    title: "Upload your Netsuite integration spec",
-    description:
-      "If you have an existing integration document or API spec for Netsuite, upload it here. Our AI will extract the key integration points and flag any gaps.",
-    actionType: "upload_document" as const,
-  },
-  {
-    title: "Review inventory tracking workflow",
-    description:
-      "Discuss how you currently track raw materials, WIP, and finished goods. We'll identify the data entities and workflows needed in your ERP.",
-    actionType: "interview" as const,
-  },
-  {
-    title: "Upload meeting transcript — initial discovery call",
-    description:
-      "Have a recording or transcript from your initial discovery call? Upload it and our AI will extract open questions and action items automatically.",
-    actionType: "upload_transcript" as const,
-  },
-  {
-    title: "Add your team members and responsibilities",
-    description:
-      "List the people who will use the ERP platform and their roles. This helps us tailor workflows and permissions to your team structure.",
-    actionType: "general" as const,
-  },
-] satisfies Array<{
-  title: string;
-  description: string;
-  actionType: "interview" | "upload_document" | "upload_transcript" | "general";
-}>;
-
 export interface DemoSession {
   userId: string;
   orgId: string;
@@ -78,7 +41,7 @@ export interface DemoSession {
   expiresAt: Date;
 }
 
-export async function createDemoOrg(): Promise<DemoSession> {
+export async function createDemoOrg(companyPrompt: string): Promise<DemoSession> {
   const uid = randomUUID();
   const orgSlug = `demo-${uid.slice(0, 8)}`;
   const email = `demo-${uid.slice(0, 8)}@demo.erpforge.internal`;
@@ -119,18 +82,18 @@ export async function createDemoOrg(): Promise<DemoSession> {
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await db.insert(orgMeta).values({ orgId, isDemo: true, demoExpiresAt: expiresAt });
 
-  // Seed demo tasks
-  await db.insert(tasks).values(
-    DEMO_TASKS.map((t) => ({
-      orgId,
-      title: t.title,
-      description: t.description,
-      actionType: t.actionType,
-      status: "open" as const,
-      assignedToId: userId,
-      assignedById: userId,
-    }))
-  );
+  // Seed a single interview task with the visitor's company prompt
+  await db.insert(tasks).values({
+    orgId,
+    title: "Tell us about your business",
+    description:
+      "Start an AI-powered interview to define your ERP requirements. Your responses will shape a custom platform built for how you actually work.",
+    contextNotes: companyPrompt,
+    actionType: "interview",
+    status: "open",
+    assignedToId: userId,
+    assignedById: userId,
+  });
 
   log.info({ orgId, orgSlug, email }, "demo org created");
   return { userId, orgId, email, password, expiresAt };
