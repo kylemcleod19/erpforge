@@ -1,6 +1,0 @@
-[deploy]
-  startCommand = "node services/coder/dist/services/coder/server.js"
-  healthcheckPath = "/health"
-  healthcheckTimeout = 30
-  restartPolicyType = "on_failure"
-  restartPolicyMaxRetries = 3
