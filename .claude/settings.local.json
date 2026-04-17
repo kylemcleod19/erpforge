@@ -32,7 +32,8 @@
       "Bash(mkdir -p C:/src/erpforge/web/src/app/api/orgs/\\\\[orgId\\\\])",
       "Bash(mkdir -p C:/src/erpforge/web/src/app/api/orgs/\\\\[orgId\\\\]/invitations)",
       "WebFetch(domain:docs.railway.com)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "mcp__railway-mcp-server__list-projects"
     ]
   }
 }
