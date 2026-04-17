@@ -260,7 +260,7 @@ async function deliverMessage(slug: string, message: string): Promise<TurnResult
 const app = express();
 app.use(express.json());
 
-app.get("/health", (_req: Request, res: Response) => {
+app.get(["/health", "/api/health"], (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "interviewer", ts: new Date().toISOString() });
 });
 

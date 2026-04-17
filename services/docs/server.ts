@@ -50,7 +50,7 @@ const jobs = new Map<string, DocJob>();
 const app = express();
 app.use(express.json());
 
-app.get("/health", (_req: Request, res: Response) => {
+app.get(["/health", "/api/health"], (_req: Request, res: Response) => {
   res.json({ status: "ok", service: "docs", ts: new Date().toISOString() });
 });
 
