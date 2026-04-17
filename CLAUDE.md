@@ -4,17 +4,22 @@
 
 ERP Forge is a custom ERP generator for small manufacturers. It conducts a structured AI-powered interview with a customer, compiles the responses into a validated spec, then generates a complete production-ready Next.js ERP platform tailored to that customer's workflows.
 
-Three components work in sequence:
+Four services work together:
 
 ```
-Interviewer → spec.json → Dev Agent → customers/<slug>/platform/
-                               ↕
-                         Web API (Next.js)
+Interviewer Service ──┐
+                      ├── shared Railway volume ── customers/<slug>/
+Coder Service ────────┤
+                      │
+Docs Service ─────────┘
+      ↕ HTTP
+Web Service (Next.js) ← thin orchestrator, delegates via HTTP
 ```
 
-1. **Interviewer** (`interviewer/`) — Multi-phase CLI agent that interviews a customer and compiles a `spec.json`
-2. **Dev Agent** (`dev-agent/`) — Reads `spec.json` and generates a full Next.js ERP platform
-3. **Web Server** (`web/`) — REST API wrapping both agents for browser/HTTP access
+1. **Interviewer** (`interviewer/`) — Multi-phase interview logic; served as HTTP microservice (`services/interviewer/`)
+2. **Dev Agent** (`dev-agent/`) — Reads `spec.json` and generates a full Next.js ERP platform; served as HTTP microservice (`services/coder/`)
+3. **Docs** — On-demand documentation generation from spec + manifest; served as HTTP microservice (`services/docs/`)
+4. **Web Server** (`web/`) — Next.js app + REST API, thin HTTP client that delegates to the three microservices
 
 ---
 
@@ -29,7 +34,13 @@ customers/<slug>/
   platform/           ← generated Next.js ERP app
 ```
 
-All three components communicate via files in `customers/<slug>/`. The database is an audit log — source of truth is on disk (Railway volume in production).
+All four services share a Railway volume mounted at `customers/`. The database is an audit log — source of truth is on disk.
+
+**Service ports (local defaults):**
+- Web: 3000
+- Interviewer service: 3001
+- Coder service: 3002
+- Docs service: 3003
 
 ---
 
@@ -40,19 +51,34 @@ erpforge/
 ├── interviewer/          CLI interview agent (phases/, modules/)
 ├── dev-agent/            CLI build agent (phases/)
 ├── schemas/              spec.schema.json + spec.example.json
-├── web/                  Next.js API server
+├── services/
+│   ├── interviewer/      Express microservice wrapping interviewer/
+│   │   ├── server.ts
+│   │   ├── package.json  (@erpforge/interviewer-service)
+│   │   ├── tsconfig.json (rootDir: ../../, outDir: dist)
+│   │   └── Dockerfile
+│   ├── coder/            Express microservice wrapping dev-agent/
+│   │   ├── server.ts
+│   │   ├── package.json  (@erpforge/coder-service)
+│   │   ├── tsconfig.json
+│   │   └── Dockerfile
+│   └── docs/             Express microservice for doc generation
+│       ├── server.ts
+│       ├── package.json  (@erpforge/docs-service)
+│       ├── tsconfig.json
+│       └── Dockerfile
+├── web/                  Next.js API server (thin HTTP orchestrator)
 │   ├── src/
 │   │   ├── app/api/      Route handlers (interviews, builds, health)
 │   │   ├── db/           Drizzle schema, migrations, singleton
-│   │   ├── lib/          config, logger, api helpers, services
+│   │   ├── lib/          config, logger, api helpers, HTTP service clients
 │   │   └── instrumentation.ts  DB migrations at startup
 │   ├── drizzle/          Generated migration files (committed)
 │   └── scripts/          migrate.ts CLI
 ├── scripts/              validate-schema.ts (CI)
 ├── customers/            Runtime data — git-ignored, Railway volume
-├── Dockerfile            Multi-stage build
-├── railway.toml          Start command, healthcheck config
-└── package.json          Workspaces root (web/)
+├── railway.toml          Healthcheck config (no startCommand — set per-service in Railway UI)
+└── package.json          Workspaces root (web/, services/*)
 ```
 
 ---
@@ -95,6 +121,31 @@ Tracks generated files in `customers/<slug>/build-manifest.json`.
 
 ---
 
+## Microservices — How They Work
+
+Each service is a standalone Express server that wraps the corresponding agent logic. They are deployed as separate Railway services sharing a volume.
+
+**Interviewer service** (`services/interviewer/server.ts`):
+- Preserves the deferred-Promise bridge pattern from the original `interview-service.ts`
+- `agentWaiting` deferred resolves when agent produces a reply; `userInput` deferred resolves when HTTP client sends a message
+- Auto-approves review flags via mock readline
+- Routes: `POST /sessions`, `GET /sessions/:slug`, `POST /sessions/:slug/messages`, `DELETE /sessions/:slug`, `GET /health`
+
+**Coder service** (`services/coder/server.ts`):
+- Preserves mock readline pattern from original `build-service.ts`
+- `makeAutoBuildRl` matches phase-complete prompts and auto-continues
+- Routes: `POST /builds`, `GET /builds/:slug`, `POST /builds/:slug/continue`, `DELETE /builds/:slug`, `GET /health`
+
+**Docs service** (`services/docs/server.ts`):
+- Calls `generateDocs()` from `dev-agent/generators/docs/docs-generator`
+- Routes: `POST /docs`, `GET /docs/:slug`, `GET /docs/:slug/spec-summary`, `GET /docs/:slug/openapi`, `GET /health`
+
+**TypeScript compilation:** Each service tsconfig uses `rootDir: "../../"` so the compiled output mirrors the source tree. Start commands reference the full path, e.g. `node services/interviewer/dist/services/interviewer/server.js`.
+
+**Health routes:** All three services respond on both `/health` and `/api/health` (the root `railway.toml` configures `healthcheckPath = "/api/health"`).
+
+---
+
 ## Spec Schema
 
 **File:** `schemas/spec.schema.json` (JSON Schema draft 2020-12)
@@ -129,14 +180,23 @@ All routes return `{ data, error }` envelope via helpers in `web/src/lib/api.ts`
 |--------|------|---------|
 | GET | `/api/health` | Railway healthcheck — returns `{ status, ts, db, version }` |
 | POST | `/api/interviews` | Create interview session `{ slug }` |
-| GET | `/api/interviews/:slug` | Get session state from disk |
+| GET | `/api/interviews/:slug` | Get session state (delegates to interviewer service) |
 | POST | `/api/interviews/:slug/messages` | Send message `{ message }`, get agent reply |
 | POST | `/api/builds` | Start dev-agent build `{ slug }` |
 | GET | `/api/builds/:slug` | Poll build status |
 
-**Interview service** (`web/src/lib/interview-service.ts`): Runs InterviewAgent as a long-lived background Promise. HTTP turns sync with agent turns via two Promises (`agentWaiting`, `userInput`). Review phase auto-approves flags. State doesn't survive restarts — GET /interviews/:slug re-spawns the worker from session.json if needed.
+**Interview service client** (`web/src/lib/interview-service.ts`): Thin HTTP client calling `INTERVIEWER_SERVICE_URL`. `getSessionState()` is async. All session state lives in the interviewer microservice.
 
-**Build service** (`web/src/lib/build-service.ts`): Runs DevAgent in background. In-memory Map tracks status per slug. Falls back to dev-session.json on server restart.
+**Build service client** (`web/src/lib/build-service.ts`): Thin HTTP client calling `CODER_SERVICE_URL`. `getBuildStatus()` is async.
+
+**Docs service client** (`web/src/lib/docs-service.ts`): Thin HTTP client calling `DOCS_SERVICE_URL`.
+
+**Service URLs** configured in `web/src/lib/config.ts`:
+- `interviewerServiceUrl` — default `http://localhost:3001`
+- `coderServiceUrl` — default `http://localhost:3002`
+- `docsServiceUrl` — default `http://localhost:3003`
+
+In production, set these to Railway private networking URLs: `http://<service>.railway.internal:<port>`.
 
 ---
 
@@ -166,7 +226,7 @@ Migrations live in `web/drizzle/` (committed to git). Run automatically at start
 ## How to Run Locally
 
 ```bash
-# Install all dependencies (root + web workspace)
+# Install all dependencies (root + all workspaces)
 npm ci
 
 # Compile CLI tools
@@ -175,7 +235,12 @@ npm run build:cli
 # Start web dev server (localhost:3000)
 npm run dev:web
 
-# Run an interview (requires ANTHROPIC_API_KEY)
+# Run microservices locally (each in a separate terminal)
+npx tsx services/interviewer/server.ts   # port 3001
+npx tsx services/coder/server.ts         # port 3002
+npx tsx services/docs/server.ts          # port 3003
+
+# Run an interview directly via CLI (requires ANTHROPIC_API_KEY)
 export ANTHROPIC_API_KEY=sk-ant-...
 npm run dev:interview acme-parts
 
@@ -188,11 +253,17 @@ npm run validate-schema
 # Run tests
 npm test
 
-# Web workspace commands (from web/ or via workspace)
+# Typecheck all workspaces
+npx tsc --noEmit
+npm run typecheck --workspace=web
+npm run typecheck --workspace=@erpforge/interviewer-service
+npm run typecheck --workspace=@erpforge/coder-service
+npm run typecheck --workspace=@erpforge/docs-service
+
+# Web workspace commands
 npm run db:generate --workspace=web   # generate migration from schema changes
 npm run db:migrate --workspace=web    # apply pending migrations
 npm run db:studio --workspace=web     # Drizzle Studio UI
-npm run typecheck --workspace=web
 ```
 
 Local web dev requires `web/.env.local`:
@@ -200,6 +271,9 @@ Local web dev requires `web/.env.local`:
 DATABASE_URL=postgres://localhost:5432/erpforge
 ANTHROPIC_API_KEY=sk-ant-...
 BETTER_AUTH_SECRET=any-string-for-local
+INTERVIEWER_SERVICE_URL=http://localhost:3001
+CODER_SERVICE_URL=http://localhost:3002
+DOCS_SERVICE_URL=http://localhost:3003
 ```
 
 ---
@@ -212,33 +286,55 @@ main branch →  GitHub Actions  →  Railway production (production URL)
 ```
 
 **GitHub Actions workflows:**
-- `ci.yml` — typecheck + validate-schema + test (runs on all PRs and pushes)
-- `deploy-staging.yml` — CI + `railway up` to staging (triggers on push to `dev`)
-- `deploy-production.yml` — CI + `railway up` to production + healthcheck polling (triggers on push to `main`)
+- `ci.yml` — typecheck (all 4 workspaces) + validate-schema + test (runs on all PRs and pushes)
+- `deploy-staging.yml` — CI + `railway up` for all 4 services to staging (triggers on push to `dev`)
+- `deploy-production.yml` — CI + `railway up` for all 4 services + healthcheck polling (triggers on push to `main`)
 - `spec-notify.yml` — creates GitHub issue when `spec.schema.json` changes on `main`
 
-**Required GitHub secrets:** `RAILWAY_TOKEN`, `RAILWAY_STAGING_SERVICE_ID`, `RAILWAY_PRODUCTION_SERVICE_ID`
+**Required GitHub secrets:**
+```
+RAILWAY_TOKEN
+RAILWAY_STAGING_SERVICE_ID                  (web)
+RAILWAY_STAGING_INTERVIEWER_SERVICE_ID
+RAILWAY_STAGING_CODER_SERVICE_ID
+RAILWAY_STAGING_DOCS_SERVICE_ID
+RAILWAY_PRODUCTION_SERVICE_ID               (web)
+RAILWAY_PRODUCTION_INTERVIEWER_SERVICE_ID
+RAILWAY_PRODUCTION_CODER_SERVICE_ID
+RAILWAY_PRODUCTION_DOCS_SERVICE_ID
+```
 **Required GitHub variables:** `STAGING_URL`, `PRODUCTION_URL`
 **Optional secret:** `SLACK_WEBHOOK_URL` (production failure alerts)
 
-**Railway service config:**
-- PORT must be set to `8080` in Railway environment variables
-- `DATABASE_URL` auto-injected by Railway Postgres plugin
-- `ANTHROPIC_API_KEY`, `BETTER_AUTH_SECRET`, `CUSTOMERS_DIR` set manually
-- Migrations run automatically at startup (via `instrumentation.ts`)
-- Health check: `GET /api/health` must return 200 within 60s
+**Railway service configuration:**
 
-**Dockerfile (multi-stage):**
-1. Builder: `npm ci` + `next build` → produces `web/.next/standalone/`
-2. Runner: copies standalone to `/app/`, static assets to `/app/web/.next/static/`, drizzle migrations to `/app/web/drizzle/`
-3. Start: `node web/server.js` (server.js chdir's to `/app/web`, so all paths resolve from there)
+| Service | Start command | Port |
+|---------|--------------|------|
+| web | `node web/server.js` | 8080 |
+| interviewer | `node services/interviewer/dist/services/interviewer/server.js` | 8080 |
+| coder | `node services/coder/dist/services/coder/server.js` | 8080 |
+| docs | `node services/docs/dist/services/docs/server.js` | 8080 |
+
+- `PORT=8080` must be set in Railway environment variables for each service
+- `DATABASE_URL` auto-injected by Railway Postgres plugin (web service only)
+- `ANTHROPIC_API_KEY` set on all 4 services; `BETTER_AUTH_SECRET` on web only
+- `CUSTOMERS_DIR=/apps/customers` set on the 3 microservices (interviewer, coder, docs) — **not** the web service
+- `INTERVIEWER_SERVICE_URL`, `CODER_SERVICE_URL`, `DOCS_SERVICE_URL` set on the web service (use Railway private networking URLs)
+- The shared Railway volume is mounted at `/apps/customers` on the 3 microservices only — the web service needs no volume (it no longer reads/writes `customers/` directly)
+- Health check: `GET /api/health` must return 200 within 60s (all services respond on both `/health` and `/api/health`)
+- Start commands are set in the Railway UI per service — **not** in `railway.toml` (the root `railway.toml` would otherwise apply to all services)
+
+**Dockerfiles (multi-stage, one per service):**
+- Builder stage: installs all deps, copies shared packages (`interviewer/`, `dev-agent/`, `schemas/`), compiles TypeScript
+- Runner stage: `npm ci --omit=dev`, copies compiled `dist/`
+- Web Dockerfile additionally runs `next build` and uses Next.js standalone output
 
 ---
 
 ## Autonomous vs. Human Review
 
 Claude can do without asking:
-- Edit any file in `interviewer/`, `dev-agent/`, `schemas/`, `web/src/`
+- Edit any file in `interviewer/`, `dev-agent/`, `schemas/`, `web/src/`, `services/*/server.ts`
 - Add or modify API routes, services, lib utilities
 - Update Drizzle schema + generate migrations
 - Update `web/src/lib/config.ts` for new env vars
@@ -248,8 +344,9 @@ Claude can do without asking:
 
 Always ask before:
 - Changing `schemas/spec.schema.json` structure (impacts compiler, spec-manager, all customer specs)
-- Modifying `railway.toml` or `Dockerfile`
+- Modifying `railway.toml` or any `Dockerfile`
 - Renaming API routes (breaking change for any clients)
 - Pushing to `dev` or `main`
 - Changing `customers/` directory structure or slug validation
 - Modifying GitHub Actions workflows
+- Changing service-to-service URL configuration (affects Railway private networking)
