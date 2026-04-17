@@ -212,7 +212,7 @@ export async function runAllModules(
         session.completed_modules[session.completed_modules.length - 1]
       );
       const currModule = getModule(module_id);
-      const transition = `That's really helpful on ${prevModule.name.toLowerCase()}. Let's move on to ${currModule.name.toLowerCase()} — just a few more questions.`;
+      const transition = `Moving on to ${currModule.name.toLowerCase()}.`;
       const bridgeResponse = await onMessage("assistant", transition);
       session.messages.push({ role: "assistant", content: transition });
       session.messages.push({ role: "user", content: bridgeResponse });

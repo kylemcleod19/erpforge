@@ -20,9 +20,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Typecheck before deploying — catch type errors that would break the build.
+      # Typecheck all packages before deploying.
       - name: Typecheck
-        run: npx tsc --noEmit && npm run typecheck --workspace=web
+        run: |
+          npx tsc --noEmit
+          npm run typecheck --workspace=web
+          npm run typecheck --workspace=@erpforge/interviewer-service
+          npm run typecheck --workspace=@erpforge/coder-service
+          npm run typecheck --workspace=@erpforge/docs-service
 
       - name: Validate spec schema
         run: npm run validate-schema
@@ -35,8 +40,23 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Deploy to staging
+      - name: Deploy web to staging
         run: railway up --service ${{ secrets.RAILWAY_STAGING_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy interviewer service to staging
+        run: railway up --service ${{ secrets.RAILWAY_STAGING_INTERVIEWER_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy coder service to staging
+        run: railway up --service ${{ secrets.RAILWAY_STAGING_CODER_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy docs service to staging
+        run: railway up --service ${{ secrets.RAILWAY_STAGING_DOCS_SERVICE_ID }} --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 

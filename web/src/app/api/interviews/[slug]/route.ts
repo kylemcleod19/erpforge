@@ -20,7 +20,7 @@ export async function GET(
   const { slug } = await params;
   log.debug({ slug }, "GET session state");
 
-  const state = getSessionState(slug);
+  const state = await getSessionState(slug);
   if (!state) return notFound("Interview session");
 
   return ok(state);

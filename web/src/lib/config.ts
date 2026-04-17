@@ -57,6 +57,13 @@ export const config = {
   // Set CUSTOMERS_DIR=/app/customers in the Railway environment variable panel.
   customersDir: optionalEnv("CUSTOMERS_DIR", defaultCustomersDir),
 
+  // Internal URLs for the three agent microservices.
+  // In Railway: http://<service>.railway.internal:<port>
+  // Locally: http://localhost:<port>
+  interviewerServiceUrl: optionalEnv("INTERVIEWER_SERVICE_URL", "http://localhost:3001"),
+  coderServiceUrl: optionalEnv("CODER_SERVICE_URL", "http://localhost:3002"),
+  docsServiceUrl: optionalEnv("DOCS_SERVICE_URL", "http://localhost:3003"),
+
   // Directory for uploaded files (transcripts, documents). Same volume as customers/.
   uploadsDir: optionalEnv("UPLOADS_DIR", path.resolve(process.cwd(), "uploads")),
 

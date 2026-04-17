@@ -63,7 +63,7 @@ export class InterviewAgent {
       // eslint-disable-next-line no-fallthrough
       case "routing":
         this.print(
-          "Great — I have a good sense of your business. Let me figure out what else we need to cover."
+          "One moment — determining follow-up topics."
         );
         session = await routeModules(session, this.client);
         // Fall through to modules
@@ -87,9 +87,7 @@ export class InterviewAgent {
       // eslint-disable-next-line no-fallthrough
       case "review":
         this.print(
-          `That covers everything I need from you, ${session.intake?.company_name ?? ""}! ` +
-            `We'll take a few minutes to review this internally and then compile your spec. ` +
-            `You'll receive the completed document shortly.`
+          `Interview complete. The spec will be compiled after internal review.`
         );
         console.log("\n[Switching to operator review mode...]\n");
         session = await runHumanReview(session, this.rl);

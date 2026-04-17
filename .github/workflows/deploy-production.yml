@@ -21,7 +21,12 @@ jobs:
         run: npm ci
 
       - name: Typecheck
-        run: npx tsc --noEmit && npm run typecheck --workspace=web
+        run: |
+          npx tsc --noEmit
+          npm run typecheck --workspace=web
+          npm run typecheck --workspace=@erpforge/interviewer-service
+          npm run typecheck --workspace=@erpforge/coder-service
+          npm run typecheck --workspace=@erpforge/docs-service
 
       - name: Validate spec schema
         run: npm run validate-schema
@@ -32,8 +37,23 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Deploy to production
+      - name: Deploy web to production
         run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy interviewer service to production
+        run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_INTERVIEWER_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy coder service to production
+        run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_CODER_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy docs service to production
+        run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_DOCS_SERVICE_ID }} --detach
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 

@@ -86,8 +86,13 @@ export function TaskList({ tasks, userRole: _userRole }: TaskListProps) {
                     </Badge>
                   </div>
                   {task.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                       {task.description}
+                    </p>
+                  )}
+                  {task.questions && task.questions.length > 0 && (
+                    <p className="text-xs text-primary/70 font-medium mt-1">
+                      {task.questions.length} question{task.questions.length !== 1 ? "s" : ""} to answer
                     </p>
                   )}
                   {task.dueAt && task.status !== "complete" && (

@@ -54,7 +54,7 @@ export async function runIntake(
   onMessage: (role: "assistant" | "user", content: string) => Promise<string>
 ): Promise<InterviewSession> {
   const openingLine =
-    "Hi there! I'm here to learn about your business so we can design the right ERP system for you. Let's start simple — what does your company make or do?";
+    "I'll be asking about your operations, workflows, and current systems — this feeds directly into your ERP spec. Start with your product line: what do you manufacture?";
 
   // Deliver opening line and get first user response
   const firstUserResponse = await onMessage("assistant", openingLine);
