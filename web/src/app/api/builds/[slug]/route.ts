@@ -24,7 +24,7 @@ export async function GET(
   const { slug } = await params;
   log.debug({ slug }, "GET build status");
 
-  const status = getBuildStatus(slug);
+  const status = await getBuildStatus(slug);
   if (!status) return notFound("Build job");
 
   return ok(status);
