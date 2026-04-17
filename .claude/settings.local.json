@@ -30,7 +30,9 @@
       "Bash(xargs grep:*)",
       "Bash(npx @better-auth/cli generate --output ./drizzle/better_auth_schema.sql)",
       "Bash(mkdir -p C:/src/erpforge/web/src/app/api/orgs/\\\\[orgId\\\\])",
-      "Bash(mkdir -p C:/src/erpforge/web/src/app/api/orgs/\\\\[orgId\\\\]/invitations)"
+      "Bash(mkdir -p C:/src/erpforge/web/src/app/api/orgs/\\\\[orgId\\\\]/invitations)",
+      "WebFetch(domain:docs.railway.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
