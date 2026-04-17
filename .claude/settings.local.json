@@ -33,7 +33,12 @@
       "Bash(mkdir -p C:/src/erpforge/web/src/app/api/orgs/\\\\[orgId\\\\]/invitations)",
       "WebFetch(domain:docs.railway.com)",
       "WebFetch(domain:github.com)",
-      "mcp__railway-mcp-server__list-projects"
+      "mcp__railway-mcp-server__list-projects",
+      "Bash(railway --version)",
+      "Bash(railway whoami *)",
+      "Bash(npm ls *)",
+      "Bash(gh secret *)",
+      "PowerShell(gh secret *)"
     ]
   }
 }

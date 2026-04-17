@@ -43,22 +43,22 @@ jobs:
       - name: Deploy web to production
         run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_SERVICE_ID }} --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy interviewer service to production
         run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_INTERVIEWER_SERVICE_ID }} --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy coder service to production
         run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_CODER_SERVICE_ID }} --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy docs service to production
         run: railway up --service ${{ secrets.RAILWAY_PRODUCTION_DOCS_SERVICE_ID }} --detach
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       # Poll the health endpoint — production gets 8 minutes (longer cold-start budget).
       # PRODUCTION_URL is a repo variable (e.g. https://erpforge.io).
