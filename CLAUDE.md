@@ -289,11 +289,11 @@ Deploys are driven by Railway's **native GitHub integration** on each service, w
 
 **GitHub Actions workflows:**
 - `ci.yml` — typecheck (all 4 workspaces) + validate-schema + test (runs on all PRs and pushes to `main`/`dev`). This is what Railway's "Wait for CI" waits on.
-- `deploy-staging.yml` — fires via `workflow_run` after CI succeeds on `dev`; polls `${STAGING_URL}/api/health` for up to 5 min and opens a GitHub issue on failure.
+- `deploy-staging.yml` — fires via `workflow_run` after CI succeeds on `dev`; polls `${STAGING_ORIGIN_URL}/api/health` for up to 5 min and opens a GitHub issue on failure.
 - `deploy-production.yml` — same pattern for `main`, 8 min budget, also posts to Slack if `SLACK_WEBHOOK_URL` is set.
 - `spec-notify.yml` — creates GitHub issue when `spec.schema.json` changes on `main`.
 
-**Required GitHub variables:** `STAGING_URL`, `PRODUCTION_URL`
+**Required GitHub variables:** `STAGING_ORIGIN_URL`, `PRODUCTION_ORIGIN_URL` — these must point at the Railway `.up.railway.app` origins (e.g. `https://erpforge-production.up.railway.app`), **not** the Cloudflare-fronted public URLs. Cloudflare's Bot Fight Mode / WAF returns 403 to GitHub Actions runners, so the health poll must bypass the CDN.
 **Optional secret:** `SLACK_WEBHOOK_URL` (production failure alerts)
 
 No Railway tokens or service IDs are needed in GitHub — Railway handles deploys itself.
