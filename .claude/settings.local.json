@@ -38,7 +38,11 @@
       "Bash(railway whoami *)",
       "Bash(npm ls *)",
       "Bash(gh secret *)",
-      "PowerShell(gh secret *)"
+      "PowerShell(gh secret *)",
+      "mcp__railway-mcp-server__check-railway-status",
+      "Bash(curl -si \"https://erpforge.kyle-mcleod.io/api/health\")",
+      "mcp__railway-mcp-server__list-services",
+      "Bash(railway status *)"
     ]
   }
 }

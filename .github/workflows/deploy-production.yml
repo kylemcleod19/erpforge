@@ -25,7 +25,7 @@ jobs:
           echo "Waiting for Railway to finish deploying production..."
           for i in $(seq 1 48); do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
-              "${{ vars.PRODUCTION_URL }}/api/health" 2>/dev/null || echo "000")
+              "${{ vars.PRODUCTION_ORIGIN_URL }}/api/health" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "✓ Production is healthy after attempt $i"
               exit 0
