@@ -281,30 +281,22 @@ DOCS_SERVICE_URL=http://localhost:3003
 ## Deployment Pipeline
 
 ```
-dev branch  →  GitHub Actions  →  Railway staging   (erpforge-staging.kyle-mcleod.io)
-main branch →  GitHub Actions  →  Railway production (production URL)
+dev branch  →  CI passes  →  Railway (native GitHub integration) deploys staging
+main branch →  CI passes  →  Railway (native GitHub integration) deploys production
 ```
+
+Deploys are driven by Railway's **native GitHub integration** on each service, with **"Wait for CI"** enabled so Railway holds the deploy until `ci.yml` passes. GitHub Actions is *not* used to push deploys — it only gates them (CI) and verifies them after (deploy-* workflows poll the health endpoint).
 
 **GitHub Actions workflows:**
-- `ci.yml` — typecheck (all 4 workspaces) + validate-schema + test (runs on all PRs and pushes)
-- `deploy-staging.yml` — CI + `railway up` for all 4 services to staging (triggers on push to `dev`)
-- `deploy-production.yml` — CI + `railway up` for all 4 services + healthcheck polling (triggers on push to `main`)
-- `spec-notify.yml` — creates GitHub issue when `spec.schema.json` changes on `main`
+- `ci.yml` — typecheck (all 4 workspaces) + validate-schema + test (runs on all PRs and pushes to `main`/`dev`). This is what Railway's "Wait for CI" waits on.
+- `deploy-staging.yml` — fires via `workflow_run` after CI succeeds on `dev`; polls `${STAGING_URL}/api/health` for up to 5 min and opens a GitHub issue on failure.
+- `deploy-production.yml` — same pattern for `main`, 8 min budget, also posts to Slack if `SLACK_WEBHOOK_URL` is set.
+- `spec-notify.yml` — creates GitHub issue when `spec.schema.json` changes on `main`.
 
-**Required GitHub secrets:**
-```
-RAILWAY_TOKEN
-RAILWAY_STAGING_SERVICE_ID                  (web)
-RAILWAY_STAGING_INTERVIEWER_SERVICE_ID
-RAILWAY_STAGING_CODER_SERVICE_ID
-RAILWAY_STAGING_DOCS_SERVICE_ID
-RAILWAY_PRODUCTION_SERVICE_ID               (web)
-RAILWAY_PRODUCTION_INTERVIEWER_SERVICE_ID
-RAILWAY_PRODUCTION_CODER_SERVICE_ID
-RAILWAY_PRODUCTION_DOCS_SERVICE_ID
-```
 **Required GitHub variables:** `STAGING_URL`, `PRODUCTION_URL`
 **Optional secret:** `SLACK_WEBHOOK_URL` (production failure alerts)
+
+No Railway tokens or service IDs are needed in GitHub — Railway handles deploys itself.
 
 **Railway service configuration:**
 
@@ -323,6 +315,7 @@ RAILWAY_PRODUCTION_DOCS_SERVICE_ID
 - The shared Railway volume is mounted at `/apps/customers` on the 3 microservices only — the web service needs no volume (it no longer reads/writes `customers/` directly)
 - Health check: `GET /api/health` must return 200 within 60s (all services respond on both `/health` and `/api/health`)
 - Start commands are set in the Railway UI per service — **not** in `railway.toml` (the root `railway.toml` would otherwise apply to all services)
+- Each service has its GitHub source connected (repo + branch: `dev` for staging, `main` for production) with **"Wait for CI"** enabled. This is what drives deploys.
 
 **Dockerfiles (multi-stage, one per service):**
 - Builder stage: installs all deps, copies shared packages (`interviewer/`, `dev-agent/`, `schemas/`), compiles TypeScript

@@ -1,70 +1,27 @@
 name: Deploy — Staging
 
+# Fires after CI succeeds on a push to `dev`. Railway (with "Wait for CI" on)
+# handles the actual deploy; this workflow only polls the staging health
+# endpoint and opens an issue if it doesn't come up.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [dev]
 
 jobs:
-  deploy:
-    name: Deploy to Railway staging
+  verify:
+    name: Verify staging deploy
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Typecheck all packages before deploying.
-      - name: Typecheck
-        run: |
-          npx tsc --noEmit
-          npm run typecheck --workspace=web
-          npm run typecheck --workspace=@erpforge/interviewer-service
-          npm run typecheck --workspace=@erpforge/coder-service
-          npm run typecheck --workspace=@erpforge/docs-service
-
-      - name: Validate spec schema
-        run: npm run validate-schema
-
-      - name: Test
-        run: npm test
-
-      # Deploy to Railway. Railway runs `next build` server-side via nixpacks.
-      # RAILWAY_TOKEN and RAILWAY_STAGING_SERVICE_ID are set in repo secrets.
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy web to staging
-        run: railway up --service ${{ secrets.RAILWAY_STAGING_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Deploy interviewer service to staging
-        run: railway up --service ${{ secrets.RAILWAY_STAGING_INTERVIEWER_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Deploy coder service to staging
-        run: railway up --service ${{ secrets.RAILWAY_STAGING_CODER_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Deploy docs service to staging
-        run: railway up --service ${{ secrets.RAILWAY_STAGING_DOCS_SERVICE_ID }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      # Poll the health endpoint until Railway finishes the deploy (up to 5 min).
-      # STAGING_URL is a repo variable (e.g. https://erpforge-staging.kyle-mcleod.io).
       - name: Wait for staging health check
         run: |
-          echo "Waiting for staging deployment..."
+          echo "Waiting for Railway to finish deploying staging..."
           for i in $(seq 1 30); do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
               "${{ vars.STAGING_URL }}/api/health" 2>/dev/null || echo "000")
@@ -78,12 +35,12 @@ jobs:
           echo "✗ Staging did not become healthy within 5 minutes"
           exit 1
 
-      # If anything above failed, create a GitHub issue so you see it immediately.
       - name: Notify staging deployment failure
         if: failure()
         uses: actions/github-script@v7
         with:
           script: |
+            const sha = context.payload.workflow_run.head_sha;
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -92,10 +49,11 @@ jobs:
               body: [
                 '## Staging deployment failed',
                 '',
-                `**Branch:** \`${context.ref}\``,
-                `**Commit:** \`${context.sha.slice(0, 7)}\``,
+                `**Branch:** \`${context.payload.workflow_run.head_branch}\``,
+                `**Commit:** \`${sha.slice(0, 7)}\``,
                 `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
                 '',
-                'Check the workflow run above for details.',
+                'Staging `/api/health` did not return 200 within 5 minutes of CI passing.',
+                'Check the Railway dashboard for build/deploy errors.',
               ].join('\n'),
             });
