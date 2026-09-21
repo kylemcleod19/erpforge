@@ -99,3 +99,8 @@ npm run dev:dev-agent acme-parts
 ## Status
 
 Actively developed. Interview → spec → build pipeline is live and deployed across staging and production on Railway. See [CLAUDE.md](CLAUDE.md) for the full architecture writeup, database schema, and deployment pipeline.
+
+## Copyright
+Copyright © 2026 Kyle McLeod. All rights reserved.
+
+This source code is publicly available for portfolio and evaluation purposes. No license is granted to copy, modify, distribute, sublicense, or commercially use this software.
